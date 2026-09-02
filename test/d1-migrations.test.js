@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import initSqlJs from "sql.js";
+import initSqlJs from "sql.js/dist/sql-asm-debug.js";
 
 import { D1_MIGRATIONS } from "../.github/scripts/d1-migration-manifest.mjs";
 import { buildD1MigrationPlan } from "../.github/scripts/d1-migration-plan.mjs";
@@ -33,11 +33,23 @@ function createLegacyReadDatabase() {
 
 		CREATE TABLE users (
 			id INTEGER PRIMARY KEY,
-			username TEXT NOT NULL UNIQUE
+			username TEXT NOT NULL UNIQUE,
+			deleted_at TEXT
 		);
 		CREATE TABLE channels (
 			id INTEGER PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE
+			name TEXT NOT NULL UNIQUE,
+			description TEXT NOT NULL DEFAULT '',
+			kind TEXT NOT NULL DEFAULT 'public',
+			dm_key TEXT,
+			created_by INTEGER,
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			deleted_at TEXT
+		);
+		CREATE TABLE channel_members (
+			channel_id INTEGER NOT NULL,
+			user_id INTEGER NOT NULL,
+			PRIMARY KEY (channel_id, user_id)
 		);
 		CREATE TABLE messages (
 			id INTEGER PRIMARY KEY,
@@ -262,3 +274,48 @@ test("CI Wrangler 配置保留收件箱 Durable Object 与管理员变量", () =
 	assert.match(config, /name = "USER_INBOX"\s+class_name = "UserInbox"/);
 	assert.match(config, /tag = "v2"\s+new_sqlite_classes = \["UserInbox"\]/);
 });
+
+test("顺序执行全部迁移 SQL 后导出的真实数据库 artifacts 能够顺利打基线", async () => {
+	const db = createLegacyReadDatabase();
+	db.exec("PRAGMA foreign_keys = OFF;");
+	for (const repair of D1_REPAIRS) {
+		const sql = readMigration(repair.file);
+		db.exec(`BEGIN;\n${sql}\nCOMMIT;`);
+	}
+	for (const migration of D1_MIGRATIONS) {
+		const sql = readMigration(migration.file);
+		db.exec(`BEGIN;\n${sql}\nCOMMIT;`);
+	}
+	db.exec("PRAGMA foreign_keys = ON;");
+
+	const artifacts = new Set();
+	const objects = db.exec("SELECT type, name FROM sqlite_master WHERE type IN ('table', 'trigger', 'index')")[0]?.values || [];
+	for (const [type, name] of objects) {
+		artifacts.add(`${type}:${name}`);
+	}
+
+	const inspectedTables = new Set(
+		D1_MIGRATIONS.flatMap((m) => m.artifacts)
+			.filter((a) => a.startsWith("column:"))
+			.map((a) => a.slice("column:".length).split(".")[0]),
+	);
+
+	for (const table of inspectedTables) {
+		const columns = db.exec(`SELECT name FROM pragma_table_info('${table}')`)[0]?.values || [];
+		for (const [columnName] of columns) {
+			artifacts.add(`column:${table}.${columnName}`);
+		}
+	}
+
+	const plan = await buildD1MigrationPlan({
+		migrations: D1_MIGRATIONS,
+		repairs: D1_REPAIRS,
+		appliedMigrations: new Map(),
+		artifacts,
+		readSql: readMigration,
+	});
+
+	assert.equal(plan.decisions.every((d) => d.action === "baseline"), true);
+	db.close();
+});
+
