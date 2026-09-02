@@ -55,18 +55,30 @@ export function toggleLocale() {
   setLocale(locale.value === CHINESE_LOCALE ? ENGLISH_LOCALE : CHINESE_LOCALE);
 }
 
+export function parseDate(value) {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    let str = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(str)) {
+      str = str.replace(' ', 'T') + 'Z';
+    }
+    return new Date(str);
+  }
+  return new Date(value);
+}
+
 export function formatDateTime(value, options = { dateStyle: 'medium', timeStyle: 'short' }) {
-  const date = value instanceof Date ? value : new Date(value);
+  const date = parseDate(value);
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(locale.value, options).format(date);
 }
 
 export function formatDate(value, options = { dateStyle: 'medium' }) {
-  const date = value instanceof Date ? value : new Date(value);
+  const date = parseDate(value);
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(locale.value, options).format(date);
 }
 
 export function formatTime(value, options = { hour: '2-digit', minute: '2-digit' }) {
-  const date = value instanceof Date ? value : new Date(value);
+  const date = parseDate(value);
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(locale.value, options).format(date);
 }
 

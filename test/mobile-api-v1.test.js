@@ -134,9 +134,10 @@ test('实时票据绑定移动会话并且只能消费一次', async () => {
 test('客户端消息和附件重试复用同一服务端记录', async () => {
   const { database, env } = createEnvironment();
   const { user } = await seedUser(database);
-  const channelId = Number(
-    database.exec("SELECT id FROM channels WHERE name = 'general'")[0].values[0][0]
-  );
+  database.run("INSERT INTO channels (name, kind, created_by) VALUES ('mobile-general', 'public', ?)", [
+    user.id
+  ]);
+  const channelId = Number(database.exec('SELECT last_insert_rowid()')[0].values[0][0]);
   const clientMessageId = crypto.randomUUID();
   const firstMessage = await insertMessageIdempotent(env, {
     channelId,
@@ -250,7 +251,6 @@ test('API v1 从 capabilities、设备登录到复用 bootstrap 保持统一契�
   assert.equal(bootstrap.status, 200);
   const payload = await bootstrap.json();
   assert.equal(Array.isArray(payload.channels), true);
-  assert.equal(payload.channels[0].name, 'general');
 
   const unauthorized = await worker.fetch(
     new Request('https://chat.example/api/v1/bootstrap'),
@@ -263,9 +263,10 @@ test('API v1 从 capabilities、设备登录到复用 bootstrap 保持统一契�
 test('GC 清理同步事件前记录每个会话的压缩游标', async () => {
   const { database, env } = createEnvironment();
   const { user } = await seedUser(database);
-  const channelId = Number(
-    database.exec("SELECT id FROM channels WHERE name = 'general'")[0].values[0][0]
-  );
+  database.run("INSERT INTO channels (name, kind, created_by) VALUES ('gc-test', 'public', ?)", [
+    user.id
+  ]);
+  const channelId = Number(database.exec('SELECT last_insert_rowid()')[0].values[0][0]);
   const message = await insertMessageIdempotent(env, {
     channelId,
     senderId: user.id,

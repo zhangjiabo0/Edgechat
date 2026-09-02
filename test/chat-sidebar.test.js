@@ -8,7 +8,7 @@ beforeEach(() => {
 	setLocale(CHINESE_LOCALE);
 });
 
-test("general 在私信和其他群组之前永久置顶", () => {
+test("会话按最新消息时间从新到旧排序", () => {
 	const sidebar = useChatSidebar({
 		applyActiveChannel() {},
 		selectDm() {},
@@ -19,9 +19,9 @@ test("general 在私信和其他群组之前永久置顶", () => {
 	sidebar.channels.value = [
 		{
 			id: 1,
-			name: "general",
+			name: "旧群聊",
 			kind: "public",
-			isGeneral: true,
+			isGeneral: false,
 			isMember: true,
 			lastMessageAt: older,
 		},
@@ -54,9 +54,8 @@ test("general 在私信和其他群组之前永久置顶", () => {
 
 	assert.deepEqual(
 		sidebar.conversationItems.value.map((item) => item.key),
-		["public:1", "dm:3", "private:2"],
+		["dm:3", "private:2", "public:1"],
 	);
-	assert.equal(sidebar.conversationItems.value[0].subtitle, "全员群组");
 	assert.deepEqual(
 		sidebar.publicGroupItems.value.map((item) => item.key),
 		["public:4"],

@@ -88,7 +88,9 @@ test("消息提及随历史消息返回，并基于已读游标清除会话标�
 	const { database, env } = createEnvironment();
 	const senderId = insertUser(database, "alice", "Alice");
 	const bobId = insertUser(database, "bob", "Bob");
-	const channelId = Number(database.exec("SELECT id FROM channels WHERE name = 'general'")[0].values[0][0]);
+	database.run("INSERT INTO channels (name, kind, created_by) VALUES ('team', 'public', ?)", [senderId]);
+	const channelId = Number(database.exec("SELECT last_insert_rowid()")[0].values[0][0]);
+	database.run("INSERT INTO channel_members (channel_id, user_id, role) VALUES (?, ?, 'member')", [channelId, bobId]);
 
 	const message = await insertMessage(env, {
 		channelId,

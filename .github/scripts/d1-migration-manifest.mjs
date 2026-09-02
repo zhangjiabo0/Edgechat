@@ -128,4 +128,10 @@ export const D1_MIGRATIONS = [
 		file: "worker/migrations/2026-09-01-message-mentions.sql",
 		artifacts: ["column:messages.mention_user_ids"],
 	},
+	{
+		id: "2026-09-02-remove-general-channel",
+		file: "worker/migrations/2026-09-02-remove-general-channel.sql",
+		artifacts: [],
+		rerunnable: true,
+	},
 ];

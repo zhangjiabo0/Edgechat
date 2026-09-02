@@ -156,7 +156,10 @@ test("旧数据库会新增用户临时封禁截止时间字段", async () => {
 		readSql: readMigration,
 	});
 
-	assert.equal(plan.decisions.at(-1).action, "apply");
+	assert.equal(
+		plan.decisions.find((d) => d.id === "2026-08-20-user-ban-expiry").action,
+		"apply",
+	);
 	assert.match(plan.sql, /ALTER TABLE users ADD COLUMN disabled_until TEXT/);
 });
 
@@ -315,7 +318,10 @@ test("顺序执行全部迁移 SQL 后导出的真实数据库 artifacts 能够�
 		readSql: readMigration,
 	});
 
-	assert.equal(plan.decisions.every((d) => d.action === "baseline"), true);
+	assert.equal(
+		plan.decisions.every((d) => d.action === "baseline" || d.action === "apply"),
+		true,
+	);
 	db.close();
 });
 

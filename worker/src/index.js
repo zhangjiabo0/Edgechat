@@ -128,8 +128,6 @@ app.post('/api/register-links/:token/register', async (c) => {
     passwordSalt: hashed.salt
   });
 
-  await ensureGeneralChannelMembership(c.env.DB, userId);
-
   return c.json({ ok: true });
 });
 
@@ -296,7 +294,6 @@ app.get('/api/users', async (c) => {
 
 app.get('/api/bootstrap', async (c) => {
   const session = c.get('session');
-  await ensureGeneralChannelMembership(c.env.DB, session.userId);
   const [users, channels, dms] = await Promise.all([
     listActiveUsers(c.env.DB, session.userId),
     listVisibleChannels(c.env.DB, session.userId),

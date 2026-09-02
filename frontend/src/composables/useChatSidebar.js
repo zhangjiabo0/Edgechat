@@ -63,11 +63,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			);
 
 		return [...dmItems, ...channelItems].sort((left, right) => {
-				if (left.isGeneral !== right.isGeneral) {
-					return left.isGeneral ? -1 : 1;
-				}
-
-				const leftTime = left.lastMessageAt
+			const leftTime = left.lastMessageAt
 				? new Date(left.lastMessageAt).getTime()
 				: 0;
 			const rightTime = right.lastMessageAt
@@ -76,7 +72,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			if (leftTime !== rightTime) {
 				return rightTime - leftTime;
 			}
-				return compareLocalized(left.title, right.title);
+			return compareLocalized(left.title, right.title);
 		});
 	});
 

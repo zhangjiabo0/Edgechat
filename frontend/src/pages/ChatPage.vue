@@ -280,9 +280,8 @@ async function bootstrap() {
   error.value = '';
   try {
     await refreshSidebar();
-    if (isDemoMode && !activeRoom.value) {
-      const general = conversationItems.value.find((item) => item.isGeneral);
-      if (general) await selectConversation(general);
+    if (isDemoMode && !activeRoom.value && conversationItems.value.length) {
+      await selectConversation(conversationItems.value[0]);
     }
   }
   catch (e) { error.value = e.message; }
