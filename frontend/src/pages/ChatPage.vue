@@ -332,7 +332,6 @@ onMounted(() => {
   window.addEventListener('focus', syncNotificationPermission);
   void bootstrap().then(connectUnreadInbox);
 });
-const { formatDate: formatLocaleDate, formatTime: formatLocaleTime, t } = useI18n();
 
 function isSameDay(leftVal, rightVal) {
   if (!leftVal || !rightVal) return false;
