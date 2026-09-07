@@ -42,12 +42,7 @@ export const D1_MIGRATIONS = [
   {
     id: "2026-07-28-general-channel",
     file: "worker/migrations/2026-07-28-general-channel.sql",
-    artifacts: [
-      "trigger:add_new_user_to_general",
-      "trigger:prevent_general_member_removal",
-      "trigger:protect_general_channel",
-    ],
-    rerunnable: true,
+    artifacts: [],
   },
   {
     id: "2026-07-29-registration-invite-usage",
@@ -131,6 +126,12 @@ export const D1_MIGRATIONS = [
 	{
 		id: "2026-09-02-remove-general-channel",
 		file: "worker/migrations/2026-09-02-remove-general-channel.sql",
+		artifacts: [],
+		rerunnable: true,
+	},
+	{
+		id: "2026-09-07-cleanup-general-channel",
+		file: "worker/migrations/2026-09-07-cleanup-general-channel.sql",
 		artifacts: [],
 		rerunnable: true,
 	},
