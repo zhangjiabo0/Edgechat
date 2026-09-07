@@ -54,11 +54,9 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			.map((channel) =>
 				mapChannelItem(
 					channel,
-					channel.isGeneral
-							? t('chat.generalGroup')
-							: t('chat.owner', {
-								name: channel.ownerDisplayName || t('common.unknown'),
-							}),
+					t('chat.owner', {
+						name: channel.ownerDisplayName || t('common.unknown'),
+					}),
 				),
 			);
 

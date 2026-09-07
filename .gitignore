@@ -10,6 +10,7 @@ TECHNICAL.md
 
 # Dependencies
 node_modules/
+coverage/
 .wrangler/
 .DS_Store
 AGENTS.md

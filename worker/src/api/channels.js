@@ -4,11 +4,6 @@ import {
   listVisibleChannels
 } from '../data/channels.js';
 import {
-  ensureGeneralChannelMembership,
-  isGeneralChannel,
-  isReservedGeneralChannelName
-} from '../data/general-channel.js';
-import {
   authorizeRoom,
   authorizeChannelManagement,
   getChannelById,
@@ -73,10 +68,6 @@ export function registerChannelRoutes(app) {
 
     if (!['public', 'private'].includes(kind)) {
       return errorResponse('群组类型无效');
-    }
-
-    if (isReservedGeneralChannelName(name)) {
-      return errorResponse('general 是系统群组名称');
     }
 
     const inviteUserIds = normalizeMemberIds(payload).filter((userId) => userId !== session.userId);
@@ -178,7 +169,7 @@ export function registerChannelRoutes(app) {
         avatarKey: channel.avatar_key || '',
         avatarUrl: channel.avatar_key ? publicFileUrl(channel.avatar_key) : '',
         kind: channel.kind,
-        isGeneral: isGeneralChannel(channel),
+        isGeneral: false,
         myRole: membership?.role || '',
         canManage: session.isAdmin || membership?.role === 'owner'
       },
@@ -204,14 +195,6 @@ export function registerChannelRoutes(app) {
     const management = await authorizeChannelManagement(c.env.DB, session, channelId);
     if (!management.ok) {
       return errorResponse('只有群主或管理员可以编辑群组', 403);
-    }
-
-    if (
-      isGeneralChannel(management.channel) &&
-      name !== undefined &&
-      name !== 'general'
-    ) {
-      return errorResponse('general 系统群组不能改名');
     }
 
     const avatarUpdate = await resolveAvatarKeyUpdate(c.env.DB, session.userId, payload);
@@ -299,10 +282,6 @@ export function registerChannelRoutes(app) {
       return errorResponse('只有群主或管理员可以移除成员', 403);
     }
 
-    if (isGeneralChannel(management.channel)) {
-      return errorResponse('general 系统群组必须保留所有成员');
-    }
-
     const targetMembership = await getChannelMembership(c.env.DB, channelId, userId);
     if (!targetMembership) {
       return errorResponse('成员不存在', 404);
@@ -334,10 +313,6 @@ export function registerChannelRoutes(app) {
       return errorResponse('只有群主或管理员可以删除群组', 403);
     }
 
-    if (isGeneralChannel(management.channel)) {
-      return errorResponse('general 系统群组不能删除');
-    }
-
     await c.env.DB.prepare(
       `UPDATE channels
        SET deleted_at = CURRENT_TIMESTAMP
@@ -361,9 +336,6 @@ export function registerChannelRoutes(app) {
     const channel = await getChannelById(c.env.DB, channelId);
     if (!channel) {
       return errorResponse('群组不存在', 404);
-    }
-    if (isGeneralChannel(channel)) {
-      return errorResponse('general 系统群组不能删除');
     }
 
     await c.env.DB.prepare(

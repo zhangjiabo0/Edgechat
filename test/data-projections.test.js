@@ -58,13 +58,13 @@ test("可见频道查询保持十个数值身份绑定与提及 projection", asy
 	assert.deepEqual(capture.binds, [7, 7, 7, 7, 7, 7, 7, 7, 7, 7]);
 	assert.deepEqual(channels[0], {
 		id: 9,
-			name: "General",
-			description: "",
-			avatarKey: "avatars/a b.png",
-			avatarUrl: "/files/avatars%2Fa%20b.png",
-			kind: "public",
-			isGeneral: true,
-			ownerDisplayName: "Owner",
+		name: "General",
+		description: "",
+		avatarKey: "avatars/a b.png",
+		avatarUrl: "/files/avatars%2Fa%20b.png",
+		kind: "public",
+		isGeneral: false,
+		ownerDisplayName: "Owner",
 		isMember: true,
 		myRole: "member",
 		canManage: false,
@@ -73,7 +73,6 @@ test("可见频道查询保持十个数值身份绑定与提及 projection", asy
 		unreadCount: 2,
 		mentionUnreadCount: 1,
 	});
-	assert.match(capture.sql, /CASE WHEN c\.name = 'general' THEN 0 ELSE 1 END/);
 });
 
 	test("overview 频道 projection 不额外暴露头像字段", async () => {
@@ -84,7 +83,7 @@ test("可见频道查询保持十个数值身份绑定与提及 projection", asy
 				description: "",
 				avatar_key: "secret-key",
 				kind: "public",
-				is_general: 1,
+				is_general: 0,
 			created_at: "2026-07-23",
 			owner_display_name: null,
 			member_count: 2,
@@ -96,8 +95,7 @@ test("可见频道查询保持十个数值身份绑定与提及 projection", asy
 	assert.equal("avatarKey" in channel, false);
 	assert.equal("avatarUrl" in channel, false);
 	assert.equal(channel.ownerDisplayName, "未知");
-	assert.equal(channel.isGeneral, true);
-	assert.match(capture.sql, /CASE WHEN c\.name = 'general' THEN 0 ELSE 1 END/);
+	assert.equal(channel.isGeneral, false);
 });
 
 test("DM 查询保持四个数值身份绑定", async () => {

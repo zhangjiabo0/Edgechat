@@ -162,15 +162,20 @@ test("删除群组统一清理管理状态并通知页面 adapter", async () => 
 	]);
 });
 
-test("general 管理动作不会发出移除成员或删除群组请求", async () => {
+test("名为 general 的常规群组允许常规的移除成员或删除群组请求", async () => {
 	const { management, activeRoom, calls } = createHarness();
-	activeRoom.value.isGeneral = true;
+	activeRoom.value.name = "general";
 
 	await management.members.remove({ id: 2, displayName: "Bob" });
 	await management.deleteGroup();
 
-	assert.equal(calls.length, 0);
-	assert.notEqual(activeRoom.value, null);
+	assert.equal(activeRoom.value, null);
+	assert.deepEqual(calls.filter(([name]) => name !== "refreshSidebar"), [
+		["removeChannelMember", 4, 2],
+		["deleteOwnedChannel", 4],
+		["onRoomDeleted"],
+		["returnToConversationList"],
+	]);
 });
 
 test("快速切换群组时旧成员请求不会覆盖当前会话", async () => {

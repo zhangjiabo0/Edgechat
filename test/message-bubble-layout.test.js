@@ -67,3 +67,16 @@ test("远程头像加载失败时显示姓名缩写", () => {
 	assert.match(avatarComponent, /failedSrc\.value !== props\.src/);
 	assert.match(avatarComponent, /@error="handleImageError"/);
 });
+
+test("消息按日分组且仅在跨天或首条消息上方显示居中日期分割线", () => {
+	assert.match(chatPage, /shouldShowDateDivider\(messages, index\)/);
+	assert.match(chatPage, /class="chat-date-divider"/);
+	assert.match(chatPage, /formatLocaleDate\(msg\.createdAt\)/);
+
+	const divider = getStyleRule(".chat-date-divider");
+	assert.match(divider, /justify-content:\s*center;/);
+	assert.match(divider, /user-select:\s*none;/);
+
+	const dividerPill = getStyleRule(".chat-date-divider span");
+	assert.match(dividerPill, /border-radius:\s*12px;/);
+});

@@ -11,7 +11,6 @@ import {
 } from './auth.js';
 import { listVisibleChannels } from './data/channels.js';
 import { listUserDms } from './data/dm-queries.js';
-import { ensureGeneralChannelMembership } from './data/general-channel.js';
 import {
   createUserWithRegistrationInvite,
   getAvailableRegistrationInvite

@@ -28,7 +28,7 @@ export async function listTelegramBridgeAdminState(env) {
 			`SELECT id, name
 			 FROM channels
 			 WHERE kind = 'public' AND deleted_at IS NULL
-			 ORDER BY CASE WHEN name = 'general' THEN 0 ELSE 1 END, name ASC`,
+			 ORDER BY name ASC`,
 		).all(),
 		env.DB.prepare(
 			`SELECT tm.id, tm.channel_id, c.name AS channel_name, tm.telegram_chat_id,

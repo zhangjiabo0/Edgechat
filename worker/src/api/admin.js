@@ -1,7 +1,6 @@
 import { hashPassword } from '../auth.js';
 import { listAdminChannels } from '../data/channels.js';
 import { listAdminDms } from '../data/dm-queries.js';
-import { ensureGeneralChannelMembership } from '../data/general-channel.js';
 import {
   createRegistrationInvite,
   listActiveRegistrationInvites,
@@ -151,8 +150,6 @@ export function registerAdminRoutes(app) {
         }
         throw error;
       });
-
-    await ensureGeneralChannelMembership(c.env.DB, result.meta.last_row_id);
 
     return c.json({
       user: {

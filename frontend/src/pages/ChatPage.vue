@@ -34,7 +34,7 @@ import store from '../store.js';
 import { useI18n } from '../i18n.js';
 
 const router = useRouter();
-const { formatTime: formatLocaleTime, t } = useI18n();
+const { formatDate: formatLocaleDate, formatTime: formatLocaleTime, t } = useI18n();
 const error = ref('');
 const activeRoom = ref(null);
 const showMobileNavigation = ref(false);
@@ -332,6 +332,27 @@ onMounted(() => {
   window.addEventListener('focus', syncNotificationPermission);
   void bootstrap().then(connectUnreadInbox);
 });
+const { formatDate: formatLocaleDate, formatTime: formatLocaleTime, t } = useI18n();
+
+function isSameDay(leftVal, rightVal) {
+  if (!leftVal || !rightVal) return false;
+  const d1 = new Date(leftVal);
+  const d2 = new Date(rightVal);
+  if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false;
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
+
+function shouldShowDateDivider(messagesList, index) {
+  if (index === 0) return true;
+  const prevMsg = messagesList[index - 1];
+  const currMsg = messagesList[index];
+  return !isSameDay(prevMsg?.createdAt, currMsg?.createdAt);
+}
+
 function formatBubbleTime(value) {
   return value ? formatLocaleTime(value) : '';
 }
@@ -543,50 +564,54 @@ onBeforeUnmount(() => {
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
           <div v-else-if="!messages.length" class="messages-hint">{{ t('chat.noMessages') }}</div>
 
-          <article
-            v-for="msg in messages" :key="msg.id"
-            :data-message-id="msg.id"
-            class="message-row"
-            :class="{
-              'message-row--own': isOwnMessage(msg),
-              'message-row--moderatable': canModerateMessages
-            }"
-          >
-            <UiAvatar
-              v-if="!isOwnMessage(msg)"
-              class="message-avatar"
-              :src="msg.sender.avatarUrl"
-              :alt="msg.sender.displayName"
-              :fallback="msg.sender.displayName"
-              size="sm"
-            />
-            <div
-              class="message-bubble"
-              :class="{
-                'message-bubble--with-attachment': msg.attachment,
-                'message-bubble--highlighted': Number(highlightedMessageId) === Number(msg.id)
-              }"
-              @contextmenu="openMessageContextMenu($event, msg)"
-              @pointerdown="startMessageLongPress($event, msg)"
-              @pointermove="trackMessageLongPress"
-              @pointerup="cancelMessageLongPress"
-              @pointercancel="cancelMessageLongPress"
-            >
-              <div v-if="activeRoom.kind !== 'dm' && !isOwnMessage(msg)" class="message-sender-name">
-                <span>{{ msg.sender.displayName }}</span>
-                <SenderSourceBadge :source="msg.sender.source" />
-              </div>
-	              <p v-if="msg.content">
-				<MentionText
-				  :content="msg.content"
-				  :mentions="msg.mentions"
-				  :current-user-id="session?.userId"
-				/>
-			  </p>
-              <MessageAttachment v-if="msg.attachment" :attachment="msg.attachment" />
-              <span class="message-time">{{ formatBubbleTime(msg.createdAt) }}</span>
+          <template v-for="(msg, index) in messages" :key="msg.id">
+            <div v-if="shouldShowDateDivider(messages, index)" class="chat-date-divider">
+              <span>{{ formatLocaleDate(msg.createdAt) }}</span>
             </div>
-          </article>
+            <article
+              :data-message-id="msg.id"
+              class="message-row"
+              :class="{
+                'message-row--own': isOwnMessage(msg),
+                'message-row--moderatable': canModerateMessages
+              }"
+            >
+              <UiAvatar
+                v-if="!isOwnMessage(msg)"
+                class="message-avatar"
+                :src="msg.sender.avatarUrl"
+                :alt="msg.sender.displayName"
+                :fallback="msg.sender.displayName"
+                size="sm"
+              />
+              <div
+                class="message-bubble"
+                :class="{
+                  'message-bubble--with-attachment': msg.attachment,
+                  'message-bubble--highlighted': Number(highlightedMessageId) === Number(msg.id)
+                }"
+                @contextmenu="openMessageContextMenu($event, msg)"
+                @pointerdown="startMessageLongPress($event, msg)"
+                @pointermove="trackMessageLongPress"
+                @pointerup="cancelMessageLongPress"
+                @pointercancel="cancelMessageLongPress"
+              >
+                <div v-if="activeRoom.kind !== 'dm' && !isOwnMessage(msg)" class="message-sender-name">
+                  <span>{{ msg.sender.displayName }}</span>
+                  <SenderSourceBadge :source="msg.sender.source" />
+                </div>
+                <p v-if="msg.content">
+                  <MentionText
+                    :content="msg.content"
+                    :mentions="msg.mentions"
+                    :current-user-id="session?.userId"
+                  />
+                </p>
+                <MessageAttachment v-if="msg.attachment" :attachment="msg.attachment" />
+                <span class="message-time">{{ formatBubbleTime(msg.createdAt) }}</span>
+              </div>
+            </article>
+          </template>
         </section>
 
         <MessageContextMenu
@@ -1079,6 +1104,26 @@ onBeforeUnmount(() => {
   padding: 64px 24px;
   color: #8696a0;
   font-size: 14px;
+}
+
+.chat-date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 12px;
+  text-align: center;
+  user-select: none;
+}
+
+.chat-date-divider span {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #54656f;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
 }
 
 .message-row {

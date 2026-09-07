@@ -115,7 +115,7 @@ export function useRoomManagement({
 			activeRoom.value.myRole = payload.room.myRole;
 				activeRoom.value.memberCount = payload.members.length;
 				activeRoom.value.name = payload.room.name || activeRoom.value.name;
-				activeRoom.value.isGeneral = Boolean(payload.room.isGeneral);
+				activeRoom.value.isGeneral = false;
 			activeRoom.value.avatarUrl = payload.room.avatarUrl || "";
 			activeRoom.value.avatarKey = payload.room.avatarKey || "";
 			syncGroupSettingsForm();
@@ -178,8 +178,7 @@ export function useRoomManagement({
 		async function removeMember(member) {
 			if (
 				!activeRoom.value ||
-				activeRoom.value.kind === "dm" ||
-				activeRoom.value.isGeneral
+				activeRoom.value.kind === "dm"
 			) {
 			return;
 		}
@@ -200,8 +199,7 @@ export function useRoomManagement({
 		async function deleteGroup() {
 			if (
 				!activeRoom.value ||
-				activeRoom.value.kind === "dm" ||
-				activeRoom.value.isGeneral
+				activeRoom.value.kind === "dm"
 			) {
 			return;
 		}

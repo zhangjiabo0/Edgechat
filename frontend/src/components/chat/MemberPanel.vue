@@ -50,7 +50,7 @@ const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-memb
 
       <div class="chat-member-panel__actions">
         <UiBadge variant="secondary">{{ room.myRole || 'member' }}</UiBadge>
-        <UiButton v-if="canManage && !room.isGeneral" variant="destructive" size="sm" @click="emit('delete-group')">
+        <UiButton v-if="canManage" variant="destructive" size="sm" @click="emit('delete-group')">
           {{ t('group.delete') }}
         </UiButton>
         <button type="button" class="chat-member-panel__close" :aria-label="t('chat.closeMembers')" @click="emit('close')">
@@ -71,7 +71,7 @@ const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-memb
             {{ member.role === 'owner' ? t('members.owner') : t('members.member') }}
           </UiBadge>
           <UiButton
-			v-if="canManage && !room.isGeneral && member.role !== 'owner'"
+			v-if="canManage && member.role !== 'owner'"
             variant="secondary"
             size="sm"
             @click="emit('remove-member', member)"
@@ -82,7 +82,7 @@ const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-memb
       </div>
     </div>
 
-    <div v-if="canManage && !room.isGeneral" class="chat-member-panel__actions">
+    <div v-if="canManage" class="chat-member-panel__actions">
       <select
         class="ui-input"
         :value="inviteUserId"

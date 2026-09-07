@@ -43,7 +43,7 @@ function openAvatarPicker() {
 
         <label class="room-dialog__field">
           <span>{{ t('group.nameGeneric') }}</span>
-          <input ref="nameInputEl" v-model="form.name" type="text" class="room-dialog__input" :disabled="room?.isGeneral" />
+          <input ref="nameInputEl" v-model="form.name" type="text" class="room-dialog__input" />
         </label>
 
         <div class="room-dialog__actions">

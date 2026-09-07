@@ -5,7 +5,7 @@ import SenderSourceBadge from './SenderSourceBadge.vue';
 import UiAvatar from '../ui/Avatar.vue';
 import UiButton from '../ui/Button.vue';
 import UiSurface from '../ui/Surface.vue';
-import { formatDateTime, t } from '../../i18n.js';
+import { formatDate, formatTime, t } from '../../i18n.js';
 
 const props = defineProps({
   messages: {
@@ -37,6 +37,25 @@ const props = defineProps({
 const emit = defineEmits(['load-older']);
 const scrollContainer = ref(null);
 
+function isSameDay(leftVal, rightVal) {
+  if (!leftVal || !rightVal) return false;
+  const d1 = new Date(leftVal);
+  const d2 = new Date(rightVal);
+  if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false;
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
+
+function shouldShowDateDivider(messagesList, index) {
+  if (index === 0) return true;
+  const prevMsg = messagesList[index - 1];
+  const currMsg = messagesList[index];
+  return !isSameDay(prevMsg?.createdAt, currMsg?.createdAt);
+}
+
 function isOwnMessage(message) {
   return message.sender.kind !== 'external' && Number(message.sender.id) === Number(props.sessionUserId);
 }
@@ -61,10 +80,6 @@ function bubbleClass(message, index) {
     'chat-bubble--continued': isSameSender(props.messages[index - 1], message),
     'chat-bubble--tail-hidden': isSameSender(message, props.messages[index + 1])
   };
-}
-
-function formatTime(value) {
-  return formatDateTime(value);
 }
 
 function scrollToBottom() {
@@ -97,30 +112,33 @@ defineExpose({
         {{ emptyText || t('messages.empty') }}
       </UiSurface>
 
-      <article
-        v-for="(message, index) in messages"
-        :key="message.id"
-        class="chat-bubble-row"
-        :class="bubbleRowClass(message, index)"
-      >
-        <UiAvatar
-          v-if="!isOwnMessage(message)"
-          :src="message.sender.avatarUrl"
-          :fallback="message.sender.displayName"
-          size="sm"
-        />
-        <div class="chat-bubble" :class="bubbleClass(message, index)">
-          <div class="chat-bubble__meta">
-            <strong>
-              {{ isOwnMessage(message) ? t('messages.you') : message.sender.displayName }}
-              <SenderSourceBadge :source="message.sender.source" />
-            </strong>
-            <span>{{ formatTime(message.createdAt) }}</span>
-          </div>
-          <p v-if="message.content">{{ message.content }}</p>
-          <MessageAttachment v-if="message.attachment" :attachment="message.attachment" />
+      <template v-for="(message, index) in messages" :key="message.id">
+        <div v-if="shouldShowDateDivider(messages, index)" class="chat-date-divider">
+          <span>{{ formatDate(message.createdAt) }}</span>
         </div>
-      </article>
+        <article
+          class="chat-bubble-row"
+          :class="bubbleRowClass(message, index)"
+        >
+          <UiAvatar
+            v-if="!isOwnMessage(message)"
+            :src="message.sender.avatarUrl"
+            :fallback="message.sender.displayName"
+            size="sm"
+          />
+          <div class="chat-bubble" :class="bubbleClass(message, index)">
+            <div class="chat-bubble__meta">
+              <strong>
+                {{ isOwnMessage(message) ? t('messages.you') : message.sender.displayName }}
+                <SenderSourceBadge :source="message.sender.source" />
+              </strong>
+              <span>{{ formatTime(message.createdAt) }}</span>
+            </div>
+            <p v-if="message.content">{{ message.content }}</p>
+            <MessageAttachment v-if="message.attachment" :attachment="message.attachment" />
+          </div>
+        </article>
+      </template>
     </div>
   </section>
 </template>

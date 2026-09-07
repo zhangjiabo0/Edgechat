@@ -68,7 +68,7 @@ export function useActiveRoom({ activeRoom }) {
 		if (room.memberCount) {
 			return t("chat.memberCount", { count: room.memberCount });
 		}
-		return room.isGeneral ? t("chat.generalGroup") : t("chat.groupConversation");
+		return t("chat.groupConversation");
 	}
 
 	return {
