@@ -31,7 +31,7 @@ function isInlineContentType(contentType) {
   if (contentType.startsWith('image/')) {
     return contentType !== 'image/svg+xml';
   }
-  if (contentType.startsWith('video/')) {
+  if (contentType.startsWith('video/') || contentType.startsWith('audio/')) {
     return true;
   }
   return false;
@@ -139,7 +139,7 @@ export function registerUploadRoutes(app) {
     headers.set('referrer-policy', 'no-referrer');
     headers.set(
       'content-security-policy',
-      "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'"
+      "sandbox; default-src 'none'; media-src 'self' data: blob:; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'"
     );
 
     const contentType =
@@ -148,8 +148,7 @@ export function registerUploadRoutes(app) {
       'application/octet-stream';
     headers.set('content-type', contentType);
     const inlineAllowed = isInlineContentType(contentType);
-    const dispositionKind =
-      inlineAllowed && !contentType.startsWith('text/') ? 'inline' : 'attachment';
+    const dispositionKind = inlineAllowed ? 'inline' : 'attachment';
     const filename =
       fileMetadata?.filename || object.customMetadata?.filename || key.split('/').pop() || 'file';
     headers.set('content-disposition', contentDispositionValue(dispositionKind, filename));

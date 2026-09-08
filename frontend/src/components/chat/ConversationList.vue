@@ -78,12 +78,13 @@ const emit = defineEmits(["select"]);
 .sidebar-list {
 	flex: 1;
 	min-height: 0;
+	height: 100%;
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding: 0;
 	touch-action: pan-y;
 	-webkit-overflow-scrolling: touch;
-	overscroll-behavior-y: contain;
+	overscroll-behavior-y: none;
 }
 
 .sidebar-list::-webkit-scrollbar {

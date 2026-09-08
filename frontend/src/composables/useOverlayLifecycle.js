@@ -6,7 +6,9 @@ let previousBodyOverflow = "";
 function lockPageScroll() {
 	if (openOverlayCount === 0) {
 		previousBodyOverflow = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
+		if (window.innerWidth > 960) {
+			document.body.style.overflow = "hidden";
+		}
 	}
 	openOverlayCount += 1;
 }

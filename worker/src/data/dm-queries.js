@@ -6,6 +6,8 @@ function mapUserDm(row) {
 		kind: "dm",
 		name: row.dm_key,
 		lastMessageAt: row.last_message_at || null,
+		lastMessageContent: row.last_message_content || null,
+		lastMessageAttachmentType: row.last_message_attachment_type || null,
 		unreadCount: Number(row.unread_count || 0),
 		otherUser: {
 			id: Number(row.other_user_id),
@@ -37,6 +39,8 @@ export async function listUserDms(db, userId) {
 			   other.display_name AS other_display_name,
 			   other.avatar_key AS other_avatar_key,
 			   (SELECT MAX(m.created_at) FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL) AS last_message_at,
+			   (SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_content,
+			   (SELECT m.attachment_type FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_attachment_type,
 				   (SELECT COUNT(*) FROM messages m
 				    WHERE m.channel_id = c.id AND m.deleted_at IS NULL
 				      AND (m.sender_id IS NULL OR m.sender_id != ?)

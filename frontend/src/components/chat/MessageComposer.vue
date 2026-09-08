@@ -327,6 +327,8 @@ onBeforeUnmount(() => {
 .chat-composer {
 	position: relative;
 	z-index: 2;
+	width: 100%;
+	box-sizing: border-box;
 	margin: auto 0 0;
 	padding: 10px 16px;
 	border-top: 1px solid #e9edef;

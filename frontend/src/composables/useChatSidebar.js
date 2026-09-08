@@ -9,6 +9,18 @@ function formatListTime(value) {
 	return formatDate(value, { month: "short", day: "numeric" });
 }
 
+function formatPreview(item, fallback) {
+	const attachmentType = item.lastMessageAttachmentType;
+	if (attachmentType === "image") return "[图片]";
+	if (attachmentType === "video") return "[视频]";
+	if (attachmentType === "audio") return "[语音]";
+	if (attachmentType === "file") return "[文件]";
+	if (item.lastMessageContent && item.lastMessageContent.trim()) {
+		return item.lastMessageContent.trim();
+	}
+	return fallback;
+}
+
 function mapChannelItem(channel, subtitle) {
 	return {
 		key: `${channel.kind}:${channel.id}`,
@@ -39,13 +51,13 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			id: dm.id,
 			kind: "dm",
 			title: dm.otherUser.displayName,
-				subtitle: t('chat.contact', { username: dm.otherUser.username }),
+			subtitle: formatPreview(dm, t('chat.contact', { username: dm.otherUser.username })),
 			avatarUrl: dm.otherUser.avatarUrl,
-				fallback: dm.otherUser.displayName,
-				lastMessageAt: dm.lastMessageAt || "",
-				dateLabel: formatListTime(dm.lastMessageAt),
-					unreadCount: Number(dm.unreadCount || 0),
-					mentionUnreadCount: 0,
+			fallback: dm.otherUser.displayName,
+			lastMessageAt: dm.lastMessageAt || "",
+			dateLabel: formatListTime(dm.lastMessageAt),
+			unreadCount: Number(dm.unreadCount || 0),
+			mentionUnreadCount: 0,
 			source: dm,
 		}));
 
@@ -54,9 +66,12 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			.map((channel) =>
 				mapChannelItem(
 					channel,
-					t('chat.owner', {
-						name: channel.ownerDisplayName || t('common.unknown'),
-					}),
+					formatPreview(
+						channel,
+						t('chat.owner', {
+							name: channel.ownerDisplayName || t('common.unknown'),
+						}),
+					),
 				),
 			);
 
@@ -78,7 +93,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 		channels.value
 			.filter((channel) => channel.kind === "public" && !channel.isMember)
 			.map((channel) =>
-					mapChannelItem(channel, t('chat.memberCount', { count: Number(channel.memberCount || 0) })),
+				mapChannelItem(channel, t('chat.memberCount', { count: Number(channel.memberCount || 0) })),
 			)
 				.sort((left, right) => compareLocalized(left.title, right.title)),
 	);
@@ -102,9 +117,11 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 		kind,
 		roomId,
 		lastMessageAt,
-			unreadCount,
-			mentionUnreadCount,
-		}) {
+		lastMessageContent,
+		lastMessageAttachmentType,
+		unreadCount,
+		mentionUnreadCount,
+	}) {
 		const source = findConversationSource(kind, roomId);
 		if (!source) {
 			return;
@@ -117,6 +134,12 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			const nextTime = new Date(lastMessageAt).getTime();
 			if (!currentTime || nextTime >= currentTime) {
 				source.lastMessageAt = lastMessageAt;
+				if (lastMessageContent !== undefined) {
+					source.lastMessageContent = lastMessageContent;
+				}
+				if (lastMessageAttachmentType !== undefined) {
+					source.lastMessageAttachmentType = lastMessageAttachmentType;
+				}
 			}
 		}
 

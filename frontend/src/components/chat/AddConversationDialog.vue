@@ -30,106 +30,108 @@ watch(
 </script>
 
 <template>
-  <Transition name="add-conversation-fade">
-    <div
-      v-if="show"
-      class="add-conversation-overlay"
-      @click.self="emit('close')"
-    >
-      <section
-        class="add-conversation-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-conversation-title"
+  <Teleport to="body">
+    <Transition name="add-conversation-fade">
+      <div
+        v-if="show"
+        class="add-conversation-overlay"
+        @click.self="emit('close')"
       >
-        <header class="add-conversation-dialog__header">
-          <div>
-            <h2 id="add-conversation-title">{{ t('chat.addPeople') }}</h2>
-            <p>{{ step === 'dm' ? t('conversation.chooseContact') : t('conversation.chooseType') }}</p>
-          </div>
-          <button type="button" class="add-conversation-dialog__close" :aria-label="t('common.close')" @click="emit('close')">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-              <title>{{ t('common.close') }}</title>
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </header>
-
-        <div v-if="step === 'choose'" class="add-conversation-dialog__choices">
-          <button ref="firstActionEl" type="button" class="add-conversation-choice" @click="step = 'dm'">
-            <span class="add-conversation-choice__icon">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <title>{{ t('conversation.startNew') }}</title>
-                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+        <section
+          class="add-conversation-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-conversation-title"
+        >
+          <header class="add-conversation-dialog__header">
+            <div>
+              <h2 id="add-conversation-title">{{ t('chat.addPeople') }}</h2>
+              <p>{{ step === 'dm' ? t('conversation.chooseContact') : t('conversation.chooseType') }}</p>
+            </div>
+            <button type="button" class="add-conversation-dialog__close" :aria-label="t('common.close')" @click="emit('close')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <title>{{ t('common.close') }}</title>
+                <path d="M18 6 6 18M6 6l12 12" />
               </svg>
-            </span>
-            <span>
-              <strong>{{ t('conversation.startNew') }}</strong>
-              <small>{{ t('conversation.startNewDescription') }}</small>
-            </span>
-            <svg class="add-conversation-choice__arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-              <title>{{ t('conversation.chooseContacts') }}</title>
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </button>
+            </button>
+          </header>
 
-          <button type="button" class="add-conversation-choice" @click="emit('create-group')">
-            <span class="add-conversation-choice__icon">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <title>{{ t('conversation.createGroup') }}</title>
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <path d="M20 8v6M23 11h-6" />
+          <div v-if="step === 'choose'" class="add-conversation-dialog__choices">
+            <button ref="firstActionEl" type="button" class="add-conversation-choice" @click="step = 'dm'">
+              <span class="add-conversation-choice__icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <title>{{ t('conversation.startNew') }}</title>
+                  <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                </svg>
+              </span>
+              <span>
+                <strong>{{ t('conversation.startNew') }}</strong>
+                <small>{{ t('conversation.startNewDescription') }}</small>
+              </span>
+              <svg class="add-conversation-choice__arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <title>{{ t('conversation.chooseContacts') }}</title>
+                <path d="m9 18 6-6-6-6" />
               </svg>
-            </span>
-            <span>
-              <strong>{{ t('conversation.createGroup') }}</strong>
-              <small>{{ t('conversation.createGroupDescription') }}</small>
-            </span>
-            <svg class="add-conversation-choice__arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-              <title>{{ t('conversation.enterGroupCreation') }}</title>
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </button>
-        </div>
+            </button>
 
-        <div v-else class="add-conversation-dialog__people">
-          <button type="button" class="add-conversation-dialog__back" @click="step = 'choose'">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <title>{{ t('common.back') }}</title>
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            {{ t('common.back') }}
-          </button>
-
-          <p v-if="error" class="add-conversation-dialog__error" role="alert">{{ error }}</p>
-          <p v-if="!users.length" class="add-conversation-dialog__empty">
-            {{ t('conversation.allUsersHaveDm') }}
-          </p>
-
-          <div v-else class="add-conversation-dialog__list">
-            <button
-              v-for="user in users"
-              :key="user.id"
-              type="button"
-              class="add-conversation-person"
-              :disabled="openingDmUserId !== null"
-              @click="emit('open-dm', user)"
-            >
-              <UiAvatar :src="user.avatarUrl" :fallback="user.displayName?.[0] || '?'" size="sm" />
-              <span class="add-conversation-person__identity">
-                <strong>{{ user.displayName }}</strong>
-                <small>@{{ user.username }}</small>
+            <button type="button" class="add-conversation-choice" @click="emit('create-group')">
+              <span class="add-conversation-choice__icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <title>{{ t('conversation.createGroup') }}</title>
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <path d="M20 8v6M23 11h-6" />
+                </svg>
               </span>
-              <span class="add-conversation-person__status" aria-live="polite">
-                {{ openingDmUserId === Number(user.id) ? t('common.opening') : t('conversation.start') }}
+              <span>
+                <strong>{{ t('conversation.createGroup') }}</strong>
+                <small>{{ t('conversation.createGroupDescription') }}</small>
               </span>
+              <svg class="add-conversation-choice__arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <title>{{ t('conversation.enterGroupCreation') }}</title>
+                <path d="m9 18 6-6-6-6" />
+              </svg>
             </button>
           </div>
-        </div>
-      </section>
-    </div>
-  </Transition>
+
+          <div v-else class="add-conversation-dialog__people">
+            <button type="button" class="add-conversation-dialog__back" @click="step = 'choose'">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <title>{{ t('common.back') }}</title>
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              {{ t('common.back') }}
+            </button>
+
+            <p v-if="error" class="add-conversation-dialog__error" role="alert">{{ error }}</p>
+            <p v-if="!users.length" class="add-conversation-dialog__empty">
+              {{ t('conversation.allUsersHaveDm') }}
+            </p>
+
+            <div v-else class="add-conversation-dialog__list">
+              <button
+                v-for="user in users"
+                :key="user.id"
+                type="button"
+                class="add-conversation-person"
+                :disabled="openingDmUserId !== null"
+                @click="emit('open-dm', user)"
+              >
+                <UiAvatar :src="user.avatarUrl" :fallback="user.displayName?.[0] || '?'" size="sm" />
+                <span class="add-conversation-person__identity">
+                  <strong>{{ user.displayName }}</strong>
+                  <small>@{{ user.username }}</small>
+                </span>
+                <span class="add-conversation-person__status" aria-live="polite">
+                  {{ openingDmUserId === Number(user.id) ? t('common.opening') : t('conversation.start') }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

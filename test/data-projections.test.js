@@ -70,6 +70,8 @@ test("可见频道查询保持十个数值身份绑定与提及 projection", asy
 		canManage: false,
 		memberCount: 3,
 		lastMessageAt: null,
+		lastMessageContent: null,
+		lastMessageAttachmentType: null,
 		unreadCount: 2,
 		mentionUnreadCount: 1,
 	});

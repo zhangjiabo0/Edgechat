@@ -1102,11 +1102,13 @@ onBeforeUnmount(() => {
 .chat-messages {
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow-y: auto;
   padding: 20px 24px;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: none;
   scrollbar-gutter: stable;
   touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-messages::-webkit-scrollbar { width: 6px; }

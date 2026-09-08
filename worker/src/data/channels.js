@@ -15,6 +15,8 @@ function mapVisibleChannel(row) {
 		canManage: Boolean(Number(row.can_manage)),
 		memberCount: Number(row.member_count || 0),
 		lastMessageAt: row.last_message_at || null,
+		lastMessageContent: row.last_message_content || null,
+		lastMessageAttachmentType: row.last_message_attachment_type || null,
 		unreadCount: Number(row.unread_count || 0),
 		mentionUnreadCount: Number(row.mention_unread_count || 0),
 	};
@@ -43,14 +45,16 @@ export async function listVisibleChannels(db, userId) {
 	const normalizedUserId = Number(userId);
 	const { results } = await db
 		.prepare(
-				`SELECT
-				   c.id, c.name, c.description, c.avatar_key, c.kind,
+			`SELECT
+			   c.id, c.name, c.description, c.avatar_key, c.kind,
 			   owner.display_name AS owner_display_name,
 			   EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = ?) AS is_member,
 			   COALESCE((SELECT cm.role FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = ? LIMIT 1), '') AS my_role,
 			   EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = ? AND cm.role = 'owner') AS can_manage,
 			   (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) AS member_count,
 			   (SELECT MAX(m.created_at) FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL) AS last_message_at,
+			   (SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_content,
+			   (SELECT m.attachment_type FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_attachment_type,
 				   CASE WHEN EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = ?)
 				     THEN (SELECT COUNT(*) FROM messages m
 				           WHERE m.channel_id = c.id AND m.deleted_at IS NULL
