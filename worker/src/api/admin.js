@@ -69,12 +69,13 @@ export function registerAdminRoutes(app) {
     const payload = await parseJsonRequest(c.req.raw);
     const siteName = String(payload.siteName || '').trim();
     const siteIconUrl = String(payload.siteIconUrl || '').trim();
+    const messageRetentionDays = payload.messageRetentionDays;
 
     if (!siteName) {
       return errorResponse('站点名称不能为空');
     }
 
-    const site = await updateSiteSettings(c.env.DB, { siteName, siteIconUrl });
+    const site = await updateSiteSettings(c.env.DB, { siteName, siteIconUrl, messageRetentionDays });
     return c.json({ site });
   });
 

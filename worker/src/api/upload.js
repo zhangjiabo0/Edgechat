@@ -58,7 +58,7 @@ function validateUpload(env, file) {
     throw new Error('该文件类型不允许上传');
   }
 
-  const allowed = String(env.ALLOWED_FILE_TYPES || '')
+  const allowed = String(env.ALLOWED_FILE_TYPES || 'image/,video/,audio/,application/pdf,text/')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
