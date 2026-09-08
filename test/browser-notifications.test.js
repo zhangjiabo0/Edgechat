@@ -99,20 +99,25 @@ test("会话免打扰阻止通知，取消后通知可聚合并打开会话", as
 			openedRoom = room;
 		},
 	});
-	const room = { kind: "dm", id: "12", name: "Alice" };
+	const room = { kind: "dm", id: "12", name: "1:12" };
+	const dmEvent = {
+		room,
+		sender: { displayName: "Alice" },
+		contentPreview: "你好，这是一条私信",
+	};
 
 	await notifications.toggleNotifications();
 	assert.equal(browserNotificationRoomKey(room), "dm:12");
 	notifications.toggleRoomMuted(room);
 	assert.equal(notifications.isRoomMuted(room), true);
-	assert.equal(notifications.notifyRoom(room), false);
+	assert.equal(notifications.notifyRoom(dmEvent), false);
 
 	notifications.toggleRoomMuted(room);
-	assert.equal(notifications.notifyRoom(room), true);
+	assert.equal(notifications.notifyRoom(dmEvent), true);
 	assert.equal(shown.length, 1);
 	assert.equal(shown[0].title, "Alice");
 	assert.deepEqual(shown[0].options, {
-		body: "收到一条新私信",
+		body: "你好，这是一条私信",
 		tag: "edgechat:dm:12",
 		renotify: true,
 	});
@@ -123,8 +128,14 @@ test("会话免打扰阻止通知，取消后通知可聚合并打开会话", as
 
 	NotificationApi.permission = "granted";
 	const groupRoom = { kind: "public", id: 3, name: "产品协作" };
-	assert.equal(notifications.notifyRoom(groupRoom), true);
-	assert.equal(shown[1].options.body, "收到一条新群聊消息");
+	const groupEvent = {
+		room: groupRoom,
+		sender: { displayName: "Bob" },
+		contentPreview: "方案已更新",
+	};
+	assert.equal(notifications.notifyRoom(groupEvent), true);
+	assert.equal(shown[1].title, "产品协作");
+	assert.equal(shown[1].options.body, "Bob: 方案已更新");
 
 	const mentionEvent = {
 		room: groupRoom,

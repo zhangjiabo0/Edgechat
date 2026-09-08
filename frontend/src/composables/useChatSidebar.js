@@ -1,22 +1,30 @@
 import { computed, ref } from "vue";
 import api from "../api.js";
-import { compareLocalized, formatDate, t } from "../i18n.js";
+import { compareLocalized, formatDateTime, t } from "../i18n.js";
 
 function formatListTime(value) {
 	if (!value) {
 		return "";
 	}
-	return formatDate(value, { month: "short", day: "numeric" });
+	return formatDateTime(value, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function formatPreview(item, fallback) {
+function formatPreview(item, fallback, isGroup = false) {
+	let text = "";
 	const attachmentType = item.lastMessageAttachmentType;
-	if (attachmentType === "image") return "[图片]";
-	if (attachmentType === "video") return "[视频]";
-	if (attachmentType === "audio") return "[语音]";
-	if (attachmentType === "file") return "[文件]";
-	if (item.lastMessageContent && item.lastMessageContent.trim()) {
-		return item.lastMessageContent.trim();
+	if (attachmentType === "image") text = "[图片]";
+	else if (attachmentType === "video") text = "[视频]";
+	else if (attachmentType === "audio") text = "[语音]";
+	else if (attachmentType === "file") text = "[文件]";
+	else if (item.lastMessageContent && item.lastMessageContent.trim()) {
+		text = item.lastMessageContent.trim();
+	}
+
+	if (text) {
+		if (isGroup && item.lastMessageSenderName) {
+			return `${item.lastMessageSenderName}: ${text}`;
+		}
+		return text;
 	}
 	return fallback;
 }
@@ -51,7 +59,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			id: dm.id,
 			kind: "dm",
 			title: dm.otherUser.displayName,
-			subtitle: formatPreview(dm, t('chat.contact', { username: dm.otherUser.username })),
+			subtitle: formatPreview(dm, t('chat.contact', { username: dm.otherUser.username }), false),
 			avatarUrl: dm.otherUser.avatarUrl,
 			fallback: dm.otherUser.displayName,
 			lastMessageAt: dm.lastMessageAt || "",
@@ -71,6 +79,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 						t('chat.owner', {
 							name: channel.ownerDisplayName || t('common.unknown'),
 						}),
+						true
 					),
 				),
 			);
@@ -119,6 +128,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 		lastMessageAt,
 		lastMessageContent,
 		lastMessageAttachmentType,
+		lastMessageSenderName,
 		unreadCount,
 		mentionUnreadCount,
 	}) {
@@ -139,6 +149,9 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 				}
 				if (lastMessageAttachmentType !== undefined) {
 					source.lastMessageAttachmentType = lastMessageAttachmentType;
+				}
+				if (lastMessageSenderName !== undefined) {
+					source.lastMessageSenderName = lastMessageSenderName;
 				}
 			}
 		}

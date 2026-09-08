@@ -32,6 +32,8 @@ test("会话按最新消息时间从新到旧排序", () => {
 			isGeneral: false,
 			isMember: true,
 			lastMessageAt: newer,
+			lastMessageContent: "讨论进度",
+			lastMessageSenderName: "Bob",
 		},
 		{
 			id: 4,
@@ -61,6 +63,11 @@ test("会话按最新消息时间从新到旧排序", () => {
 		["public:4"],
 	);
 	assert.equal(sidebar.publicGroupItems.value[0].subtitle, "3 位成员");
+
+	const teamItem = sidebar.conversationItems.value.find((item) => item.id === 2);
+	assert.equal(teamItem.subtitle, "Bob: 讨论进度");
+	assert.match(teamItem.dateLabel, /:\d{2}/);
+
 	sidebar.channels.value[1].unreadCount = 4;
 	sidebar.channels.value[1].mentionUnreadCount = 2;
 	assert.equal(sidebar.conversationItems.value.find((item) => item.id === 2).mentionUnreadCount, 2);

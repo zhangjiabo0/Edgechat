@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowLeft, Bell, BellOff, ChevronDown, Menu, Settings, UsersRound } from '@lucide/vue';
+import { ArrowLeft, Bell, BellOff, ChevronDown, Menu, Search, Settings, UsersRound, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDemoMode } from '../runtime.js';
@@ -42,6 +42,31 @@ const publicGroupPreview = ref(null);
 const joiningPublicGroup = ref(false);
 const session = computed(() => store.session);
 const showAdminEntry = computed(() => Boolean(session.value?.isAdmin));
+
+const showMessageSearch = ref(false);
+const messageSearchQuery = ref('');
+
+const filteredMessages = computed(() => {
+  const q = messageSearchQuery.value.trim().toLowerCase();
+  if (!q) return messages.value;
+  return messages.value.filter((msg) => {
+    const content = (msg.content || '').toLowerCase();
+    const sender = (msg.sender?.displayName || '').toLowerCase();
+    return content.includes(q) || sender.includes(q);
+  });
+});
+
+function toggleMessageSearch() {
+  showMessageSearch.value = !showMessageSearch.value;
+  if (!showMessageSearch.value) {
+    messageSearchQuery.value = '';
+  }
+}
+
+function closeMessageSearch() {
+  showMessageSearch.value = false;
+  messageSearchQuery.value = '';
+}
 
 const { activeRoomKey, canManageActiveRoom, applyActiveChannel, selectDm, roomLabel, roomSubtitle } =
   useActiveRoom({ activeRoom });
@@ -91,9 +116,12 @@ function handleRoomActivity({ room, message }) {
   applyConversationActivity({
     kind: room.kind,
     roomId: room.id,
-	    lastMessageAt: message.createdAt,
-	    unreadCount: 0,
-	    mentionUnreadCount: 0
+    lastMessageAt: message.createdAt,
+    lastMessageContent: message.content,
+    lastMessageAttachmentType: message.attachment?.type,
+    lastMessageSenderName: message.sender?.displayName || message.senderName,
+    unreadCount: 0,
+    mentionUnreadCount: 0
   });
   markConversationRead(room.kind, room.id);
 }
@@ -295,6 +323,7 @@ async function bootstrap() {
 watch(activeRoomKey, async (k) => {
   closeMessageMenu();
   cancelMessageLongPress();
+  closeMessageSearch();
   if (!k) {
     deactivateRoom();
     return;
@@ -460,17 +489,6 @@ onBeforeUnmount(() => {
           </button>
           <h1 class="brand-title">EdgeChat</h1>
           <div class="sidebar-header-actions">
-            <a
-              class="header-action header-action--github"
-              href="https://github.com/aozorae/Edgechat"
-              target="_blank"
-              rel="noopener noreferrer"
-              :title="t('nav.githubRepository')"
-              :aria-label="t('nav.openGithubRepository')"
-            >
-              <img src="/github.svg" alt="" width="20" height="20" />
-              <span class="sr-only">{{ t('nav.openGithubRepository') }}</span>
-            </a>
             <button
               type="button"
               class="header-action"
@@ -559,6 +577,17 @@ onBeforeUnmount(() => {
               <span>{{ showMemberPanel ? t('chat.collapseMembers') : t('chat.members') }}</span>
             </button>
             <button
+              type="button"
+              class="chat-header__button"
+              :class="{ 'chat-header__button--active': showMessageSearch }"
+              :title="t('chat.searchMessages')"
+              :aria-label="t('chat.searchMessages')"
+              @click="toggleMessageSearch"
+            >
+              <Search :size="19" aria-hidden="true" />
+              <span>{{ t('admin.sidebar.search') }}</span>
+            </button>
+            <button
               v-if="canManageActiveRoom"
               type="button"
               class="chat-header__button"
@@ -580,12 +609,36 @@ onBeforeUnmount(() => {
           @unpin="unpinMessage(pinnedMessage.id)"
         />
 
+        <div v-if="showMessageSearch" class="chat-search-bar">
+          <Search :size="16" class="chat-search-bar__icon" aria-hidden="true" />
+          <input
+            v-model="messageSearchQuery"
+            type="search"
+            class="chat-search-bar__input"
+            :placeholder="t('chat.searchMessages')"
+            :aria-label="t('chat.searchMessages')"
+          />
+          <span v-if="messageSearchQuery" class="chat-search-bar__count">
+            {{ filteredMessages.length }} / {{ messages.length }}
+          </span>
+          <button
+            type="button"
+            class="chat-search-bar__close"
+            :title="t('common.close')"
+            :aria-label="t('common.close')"
+            @click="closeMessageSearch"
+          >
+            <X :size="16" aria-hidden="true" />
+          </button>
+        </div>
+
         <section ref="messagesEl" class="chat-messages" @scroll="handleScroll">
-          <button v-if="messages.length" type="button" class="load-more-btn" @click="loadOlder">{{ t('chat.loadEarlier') }}</button>
+          <button v-if="messages.length && !showMessageSearch" type="button" class="load-more-btn" @click="loadOlder">{{ t('chat.loadEarlier') }}</button>
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
+          <div v-else-if="showMessageSearch && messageSearchQuery && !filteredMessages.length" class="messages-hint">{{ t('chat.noMatchingMessages') }}</div>
           <div v-else-if="!messages.length" class="messages-hint">{{ t('chat.noMessages') }}</div>
 
-          <template v-for="(msg, index) in messages" :key="msg.id">
+          <template v-for="(msg, index) in (showMessageSearch && messageSearchQuery ? filteredMessages : messages)" :key="msg.id">
             <div v-if="shouldShowDateDivider(messages, index)" class="chat-date-divider">
               <span>{{ formatLocaleDate(msg.createdAt) }}</span>
             </div>
@@ -1523,5 +1576,66 @@ onBeforeUnmount(() => {
   .message-bubble--highlighted {
     transition: none;
   }
+}
+
+.chat-header__button--active {
+  background: rgba(0, 128, 105, 0.12);
+  color: #008069;
+}
+
+.chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e9edef;
+  flex-shrink: 0;
+}
+
+.chat-search-bar__icon {
+  color: #54656f;
+  flex-shrink: 0;
+}
+
+.chat-search-bar__input {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #e9edef;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111b21;
+  font-size: 14px;
+  outline: none;
+}
+
+.chat-search-bar__input:focus {
+  border-color: #008069;
+}
+
+.chat-search-bar__count {
+  font-size: 12px;
+  color: #667781;
+  white-space: nowrap;
+}
+
+.chat-search-bar__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #54656f;
+  cursor: pointer;
+}
+
+.chat-search-bar__close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #111b21;
 }
 </style>

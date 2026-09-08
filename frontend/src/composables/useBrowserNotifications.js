@@ -64,16 +64,16 @@ export function useBrowserNotifications(options = {}) {
 		}
 	}
 
-		const notificationStateLabel = computed(() => {
-			if (!supported.value) return t('notifications.unavailable');
-			if (permission.value === "denied") return t('notifications.permissionDenied');
-			return enabled.value ? t('notifications.on') : t('notifications.off');
-		});
+	const notificationStateLabel = computed(() => {
+		if (!supported.value) return t('notifications.unavailable');
+		if (permission.value === "denied") return t('notifications.permissionDenied');
+		return enabled.value ? t('notifications.on') : t('notifications.off');
+	});
 
 	const notificationActionLabel = computed(() => {
-			if (!supported.value) return t('notifications.unsupported');
-			if (permission.value === "denied") return t('notifications.blocked');
-			return enabled.value ? t('notifications.disable') : t('notifications.enable');
+		if (!supported.value) return t('notifications.unsupported');
+		if (permission.value === "denied") return t('notifications.blocked');
+		return enabled.value ? t('notifications.disable') : t('notifications.enable');
 	});
 
 	const notificationToggleDisabled = computed(
@@ -119,24 +119,40 @@ export function useBrowserNotifications(options = {}) {
 		return nextMutedRooms.has(key);
 	}
 
-		function notifyRoom(event) {
-			const room = event?.room || event;
-			syncPermission();
-			if (!enabled.value || (isRoomMuted(room) && !event?.mentionsMe)) {
+	function notifyRoom(event) {
+		const room = event?.room || event;
+		syncPermission();
+		if (!enabled.value || (isRoomMuted(room) && !event?.mentionsMe)) {
 			return false;
 		}
 
-			const title = event?.mentionsMe
-				? t("notifications.mentionedTitle", { room: room.name || "EdgeChat" })
-				: room.name || "EdgeChat";
-			const senderName = event?.sender?.displayName || event?.sender?.username || "";
-			const mentionBody = [senderName, event?.contentPreview].filter(Boolean).join(": ");
-			const notification = new notificationApi(title, {
-					body: event?.mentionsMe
-						? mentionBody || t("notifications.mentionedBody")
-						: room.kind === "dm"
-							? t('notifications.directMessage')
-							: t('notifications.groupMessage'),
+		const senderName = event?.sender?.displayName || event?.sender?.username || "";
+		const contentPreview = event?.contentPreview || event?.content || "";
+
+		let title = "";
+		if (event?.mentionsMe) {
+			const displayRoom = room.kind === "dm" ? senderName : room.name;
+			title = t("notifications.mentionedTitle", { room: displayRoom || "EdgeChat" });
+		} else if (room.kind === "dm") {
+			title = senderName || t('notifications.directMessage');
+		} else {
+			title = room.name || "EdgeChat";
+		}
+
+		let body = "";
+		if (event?.mentionsMe) {
+			const mentionText = [senderName, contentPreview].filter(Boolean).join(": ");
+			body = mentionText || t("notifications.mentionedBody");
+		} else if (room.kind === "dm") {
+			body = contentPreview || t('notifications.directMessage');
+		} else {
+			body = senderName && contentPreview
+				? `${senderName}: ${contentPreview}`
+				: contentPreview || t('notifications.groupMessage');
+		}
+
+		const notification = new notificationApi(title, {
+			body,
 			tag: `edgechat:${browserNotificationRoomKey(room)}`,
 			renotify: true,
 		});

@@ -42,9 +42,11 @@ export function useUnreadInbox({
           kind: payload.room.kind,
           roomId: payload.room.id,
           lastMessageAt: payload.createdAt,
-	          unreadCount: payload.unreadCount,
-	          mentionUnreadCount: payload.mentionUnreadCount
-	        });
+          lastMessageContent: payload.contentPreview,
+          lastMessageSenderName: payload.sender?.displayName || payload.sender?.username,
+          unreadCount: payload.unreadCount,
+          mentionUnreadCount: payload.mentionUnreadCount
+        });
 				notifyRoom(payload);
 			},
 		});

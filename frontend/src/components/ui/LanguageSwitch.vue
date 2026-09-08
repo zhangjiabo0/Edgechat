@@ -6,26 +6,30 @@ const { isEnglish, t, toggleLocale } = useI18n();
 const actionLabel = computed(() =>
   isEnglish.value ? t('language.switchToChinese') : t('language.switchToEnglish')
 );
+const currentLangLabel = computed(() => (isEnglish.value ? 'EN' : '中'));
 </script>
 
 <template>
   <button
     type="button"
     class="language-switch"
+    :class="{ 'language-switch--en': isEnglish, 'language-switch--zh': !isEnglish }"
     :title="actionLabel"
     :aria-label="actionLabel"
     :data-tooltip="actionLabel"
     @click="toggleLocale"
   >
     <span class="language-switch__glyph" aria-hidden="true">
-      <span class="language-switch__han">文</span>
-      <span class="language-switch__en">EN</span>
+      <span class="language-switch__han" :class="{ 'is-active': !isEnglish }">文</span>
+      <span class="language-switch__en" :class="{ 'is-active': isEnglish }">EN</span>
     </span>
+    <span class="language-switch__indicator">{{ currentLangLabel }}</span>
   </button>
 </template>
 
 <style scoped>
 .language-switch {
+  position: relative;
   width: 44px;
   min-width: 44px;
   height: 44px;
@@ -35,15 +39,15 @@ const actionLabel = computed(() =>
   border: 1px solid rgba(88, 107, 124, 0.22);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
-  color: currentColor;
+  color: #54656f;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease, color 180ms ease;
 }
 
 .language-switch:hover {
-  border-color: rgba(45, 156, 151, 0.42);
+  border-color: rgba(0, 128, 105, 0.42);
   background: rgba(255, 255, 255, 0.94);
 }
 
@@ -52,7 +56,7 @@ const actionLabel = computed(() =>
 }
 
 .language-switch:focus-visible {
-  outline: 2px solid rgba(45, 156, 151, 0.62);
+  outline: 2px solid rgba(0, 128, 105, 0.62);
   outline-offset: 2px;
 }
 
@@ -81,13 +85,15 @@ const actionLabel = computed(() =>
   position: absolute;
   line-height: 1;
   letter-spacing: 0;
+  opacity: 0.45;
+  transition: color 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
 .language-switch__han {
   left: 0;
   top: 0;
-  font-size: 16px;
-  font-weight: 750;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .language-switch__en {
@@ -97,8 +103,39 @@ const actionLabel = computed(() =>
   font-weight: 800;
 }
 
+.language-switch__han.is-active,
+.language-switch__en.is-active {
+  opacity: 1;
+  color: #008069;
+  font-weight: 800;
+  transform: scale(1.08);
+}
+
+.language-switch__indicator {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #008069;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: background-color 180ms ease;
+}
+
+.language-switch--en .language-switch__indicator {
+  background: #0284c7;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .language-switch {
+  .language-switch,
+  .language-switch__han,
+  .language-switch__en,
+  .language-switch__indicator {
     transition: none;
   }
 }

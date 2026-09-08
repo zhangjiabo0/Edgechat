@@ -92,34 +92,27 @@ test("聊天侧栏跟随全屏根节点且不污染后台根节点", () => {
 	assert.doesNotMatch(chatPage, /(?:html|body|#app|\.admin-page)\s*{[^}]*zoom:/s);
 });
 
-	test("桌面端管理后台入口在图标下方显示文字", () => {
-		assert.match(chatPage, /class="right-sidebar-action right-sidebar-action--admin tooltip"/);
-		assert.match(chatPage, /<span class="right-sidebar-action__label">\{\{ t\('nav\.admin'\) \}\}<\/span>/);
+test("桌面端管理后台入口在图标下方显示文字", () => {
+	assert.match(chatPage, /class="right-sidebar-action right-sidebar-action--admin tooltip"/);
+	assert.match(chatPage, /<span class="right-sidebar-action__label">\{\{ t\('nav\.admin'\) \}\}<\/span>/);
 	assert.match(chatPage, /\.right-sidebar-action--admin\s*{[^}]*flex-direction:\s*column;/s);
 	assert.match(chatPage, /\.right-sidebar-action__label\s*{[^}]*font-size:\s*10px;/s);
 });
 
-	test("GitHub 仓库入口位于添加人员左侧并复用相同按钮尺寸", () => {
-		const githubLink = chatPage.indexOf('href="https://github.com/aozorae/Edgechat"');
-		const addConversation = chatPage.indexOf(':title="t(\'chat.addPeople\')"');
-	assert.notEqual(githubLink, -1);
-	assert.ok(githubLink < addConversation);
-	assert.match(chatPage, /src="\/github\.svg"/);
-	assert.match(chatPage, /rel="noopener noreferrer"/);
+test("GitHub 仓库入口已按需求从侧边栏 Header 和移动端抽屉移除", () => {
+	assert.doesNotMatch(chatPage, /href="https:\/\/github\.com\/aozorae\/Edgechat"/);
+	assert.doesNotMatch(mobileDrawer, /href="https:\/\/github\.com\/aozorae\/Edgechat"/);
+	assert.doesNotMatch(chatPage, /src="\/github\.svg"/);
+	assert.doesNotMatch(mobileDrawer, /src="\/github\.svg"/);
+});
 
-	const headerAction = getStyleRule(chatPage, ".header-action");
-	assert.match(headerAction, /flex:\s*0 0 36px;/);
-	assert.match(headerAction, /width:\s*36px;/);
-		assert.match(headerAction, /height:\s*36px;/);
-	});
-
-	test("语言切换入口位于聊天页右上区域且移动端保持可达", () => {
-		assert.doesNotMatch(chatPage, /right-sidebar-action--language/);
-		assert.match(chatPage, /<LanguageSwitch class="chat-header__language-switch" \/>/);
-		assert.match(chatPage, /<LanguageSwitch class="chat-empty__language-switch" \/>/);
-		assert.match(chatPage, /<LanguageSwitch class="mobile-language-switch" \/>/);
-		assert.match(chatPage, /\.chat-empty__language-switch\s*{[^}]*position:\s*absolute;[^}]*right:\s*16px;/s);
-		});
+test("语言切换入口位于聊天页右上区域且移动端保持可达", () => {
+	assert.doesNotMatch(chatPage, /right-sidebar-action--language/);
+	assert.match(chatPage, /<LanguageSwitch class="chat-header__language-switch" \/>/);
+	assert.match(chatPage, /<LanguageSwitch class="chat-empty__language-switch" \/>/);
+	assert.match(chatPage, /<LanguageSwitch class="mobile-language-switch" \/>/);
+	assert.match(chatPage, /\.chat-empty__language-switch\s*{[^}]*position:\s*absolute;[^}]*right:\s*16px;/s);
+});
 
 test("聊天页面通过专用组件编排会话列表和消息输入区", () => {
 	assert.match(chatPage, /<ConversationList/);

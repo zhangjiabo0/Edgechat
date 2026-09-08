@@ -28,6 +28,7 @@ async function mapVisibleChannel(row, env) {
 		memberCount: Number(row.member_count || 0),
 		lastMessageAt: row.last_message_at || null,
 		lastMessageContent,
+		lastMessageSenderName: row.last_message_sender_name || "",
 		lastMessageAttachmentType: row.last_message_attachment_type || null,
 		unreadCount: Number(row.unread_count || 0),
 		mentionUnreadCount: Number(row.mention_unread_count || 0),
@@ -67,6 +68,7 @@ export async function listVisibleChannels(db, userId, env) {
 			   (SELECT MAX(m.created_at) FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL) AS last_message_at,
 			   (SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_content,
 			   (SELECT m.sender_id FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_sender_id,
+			   (SELECT u.display_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_sender_name,
 			   (SELECT m.attachment_type FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_attachment_type,
 				   CASE WHEN EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = ?)
 				     THEN (SELECT COUNT(*) FROM messages m
