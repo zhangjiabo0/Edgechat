@@ -295,8 +295,8 @@ app.get('/api/bootstrap', async (c) => {
   const session = c.get('session');
   const [users, channels, dms] = await Promise.all([
     listActiveUsers(c.env.DB, session.userId),
-    listVisibleChannels(c.env.DB, session.userId),
-    listUserDms(c.env.DB, session.userId)
+    listVisibleChannels(c.env.DB, session.userId, c.env),
+    listUserDms(c.env.DB, session.userId, c.env)
   ]);
 
   return c.json({ users, channels, dms });

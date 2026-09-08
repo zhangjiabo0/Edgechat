@@ -1,6 +1,18 @@
+import { decryptMessageContent } from "../encryption.js";
 import { publicFileUrl } from "../utils.js";
 
-function mapVisibleChannel(row) {
+async function mapVisibleChannel(row, env) {
+	let lastMessageContent = row.last_message_content || null;
+	if (lastMessageContent && env) {
+		try {
+			lastMessageContent = await decryptMessageContent(env, lastMessageContent, {
+				channelId: Number(row.id),
+				senderId: Number(row.last_message_sender_id || 0),
+			});
+		} catch {
+			// keep raw content if decryption fails
+		}
+	}
 	return {
 		id: Number(row.id),
 		name: row.name,
@@ -15,7 +27,7 @@ function mapVisibleChannel(row) {
 		canManage: Boolean(Number(row.can_manage)),
 		memberCount: Number(row.member_count || 0),
 		lastMessageAt: row.last_message_at || null,
-		lastMessageContent: row.last_message_content || null,
+		lastMessageContent,
 		lastMessageAttachmentType: row.last_message_attachment_type || null,
 		unreadCount: Number(row.unread_count || 0),
 		mentionUnreadCount: Number(row.mention_unread_count || 0),
@@ -41,7 +53,7 @@ function mapAdminChannel(row, includeAvatar) {
 	return channel;
 }
 
-export async function listVisibleChannels(db, userId) {
+export async function listVisibleChannels(db, userId, env) {
 	const normalizedUserId = Number(userId);
 	const { results } = await db
 		.prepare(
@@ -54,6 +66,7 @@ export async function listVisibleChannels(db, userId) {
 			   (SELECT COUNT(*) FROM channel_members cm WHERE cm.channel_id = c.id) AS member_count,
 			   (SELECT MAX(m.created_at) FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL) AS last_message_at,
 			   (SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_content,
+			   (SELECT m.sender_id FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_sender_id,
 			   (SELECT m.attachment_type FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_attachment_type,
 				   CASE WHEN EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = ?)
 				     THEN (SELECT COUNT(*) FROM messages m
@@ -92,7 +105,7 @@ export async function listVisibleChannels(db, userId) {
 				normalizedUserId,
 			)
 		.all();
-	return results.map(mapVisibleChannel);
+	return Promise.all(results.map((row) => mapVisibleChannel(row, env)));
 }
 
 export async function listAdminChannels(db, { includeAvatar = true } = {}) {

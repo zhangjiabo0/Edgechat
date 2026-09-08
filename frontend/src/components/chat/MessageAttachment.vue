@@ -24,9 +24,10 @@ const isImage = computed(() => isPreviewableImageAttachment(props.attachment));
 const isAudio = computed(() => {
   const type = props.attachment?.type || '';
   const name = props.attachment?.name || '';
-  return type.startsWith('audio/') || /\.(webm|mp3|ogg|m4a|wav)$/i.test(name);
+  return type.startsWith('audio/') || name.toLowerCase().includes('voice-message') || /\.(webm|mp3|ogg|m4a|wav)$/i.test(name);
 });
 const isVideo = computed(() => {
+  if (isAudio.value) return false;
   const type = props.attachment?.type || '';
   const name = props.attachment?.name || '';
   return type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi)$/i.test(name);

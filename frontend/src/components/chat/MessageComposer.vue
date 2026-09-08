@@ -175,10 +175,8 @@ function stopRecording(shouldSend = true) {
 		tracks.forEach((track) => track.stop());
 
 		if (shouldSend && audioChunks.length > 0) {
-			const mimeType = mediaRecorder.mimeType || "audio/webm";
-			const ext = mimeType.includes("mp4") ? "mp4" : "webm";
-			const audioBlob = new Blob(audioChunks, { type: mimeType });
-			const file = new File([audioBlob], `voice-message.${ext}`, { type: mimeType });
+			const audioBlob = new Blob(audioChunks, { type: "audio/mp3" });
+			const file = new File([audioBlob], "voice-message.mp3", { type: "audio/mp3" });
 			const customEvent = { target: { files: [file] } };
 			emit("upload", customEvent);
 		}

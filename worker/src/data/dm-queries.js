@@ -1,12 +1,24 @@
+import { decryptMessageContent } from "../encryption.js";
 import { publicFileUrl } from "../utils.js";
 
-function mapUserDm(row) {
+async function mapUserDm(row, env) {
+	let lastMessageContent = row.last_message_content || null;
+	if (lastMessageContent && env) {
+		try {
+			lastMessageContent = await decryptMessageContent(env, lastMessageContent, {
+				channelId: Number(row.id),
+				senderId: Number(row.last_message_sender_id || 0),
+			});
+		} catch {
+			// keep raw content if decryption fails
+		}
+	}
 	return {
 		id: Number(row.id),
 		kind: "dm",
 		name: row.dm_key,
 		lastMessageAt: row.last_message_at || null,
-		lastMessageContent: row.last_message_content || null,
+		lastMessageContent,
 		lastMessageAttachmentType: row.last_message_attachment_type || null,
 		unreadCount: Number(row.unread_count || 0),
 		otherUser: {
@@ -28,7 +40,7 @@ function mapAdminDm(row) {
 	};
 }
 
-export async function listUserDms(db, userId) {
+export async function listUserDms(db, userId, env) {
 	const normalizedUserId = Number(userId);
 	const { results } = await db
 		.prepare(
@@ -40,6 +52,7 @@ export async function listUserDms(db, userId) {
 			   other.avatar_key AS other_avatar_key,
 			   (SELECT MAX(m.created_at) FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL) AS last_message_at,
 			   (SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_content,
+			   (SELECT m.sender_id FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_sender_id,
 			   (SELECT m.attachment_type FROM messages m WHERE m.channel_id = c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) AS last_message_attachment_type,
 				   (SELECT COUNT(*) FROM messages m
 				    WHERE m.channel_id = c.id AND m.deleted_at IS NULL
@@ -54,7 +67,7 @@ export async function listUserDms(db, userId) {
 		)
 			.bind(normalizedUserId, normalizedUserId, normalizedUserId, normalizedUserId)
 		.all();
-	return results.map(mapUserDm);
+	return Promise.all(results.map((row) => mapUserDm(row, env)));
 }
 
 export async function listAdminDms(db) {

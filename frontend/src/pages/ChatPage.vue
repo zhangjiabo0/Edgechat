@@ -766,6 +766,8 @@ onBeforeUnmount(() => {
   height: var(--chat-viewport-height, 100dvh);
   min-height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
   background: #efeae2;
 }
 

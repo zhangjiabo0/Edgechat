@@ -1016,22 +1016,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 940px;
+  max-width: 100%;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   flex-wrap: wrap;
 }
 
 .chat-composer__error {
-  max-width: 920px;
+  max-width: 100%;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .chat-composer {
-  max-width: 940px;
+  max-width: 100%;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   display: grid;
   gap: 8px;
   min-width: 0;

@@ -7,11 +7,13 @@ body,
 #app {
   min-height: 100%;
   margin: 0;
+  overscroll-behavior: none;
 }
 
 html,
 body {
   overflow-x: clip;
+  overscroll-behavior: none;
 }
 
 html {
