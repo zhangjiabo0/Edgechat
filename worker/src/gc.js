@@ -21,10 +21,22 @@ function toPositiveInteger(value, fallback) {
   return Math.floor(parsed);
 }
 
-function getGcConfig(env) {
+async function getGcConfig(env) {
+  let dbRetention = null;
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT setting_value FROM site_settings WHERE setting_key = 'message_retention_days' LIMIT 1`
+    ).all();
+    if (results && results[0]?.setting_value) {
+      dbRetention = Number(results[0].setting_value);
+    }
+  } catch (err) {
+    console.error("读取数据库 message_retention_days 失败:", err);
+  }
+
   return {
     messageRetentionDays: toPositiveInteger(
-      env.MESSAGE_RETENTION_DAYS,
+      dbRetention ?? env.MESSAGE_RETENTION_DAYS,
       DEFAULT_MESSAGE_RETENTION_DAYS
     ),
     softDeleteRetentionDays: toPositiveInteger(
@@ -598,7 +610,7 @@ async function runHardDeleteUsersStep(env, config, summary) {
 }
 
 export async function runScheduledGc(env) {
-  const config = getGcConfig(env);
+  const config = await getGcConfig(env);
   const summary = createSummary();
   await ensureGcSchema(env.DB);
 

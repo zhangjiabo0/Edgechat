@@ -39,9 +39,6 @@ export function useMessageContextMenu({
 	}
 
 	function openMessageMenuAt(message: ContextMessage, x: number, y: number) {
-		if (!canModerateMessages.value) {
-			return;
-		}
 		messageMenu.value = { message, x, y };
 	}
 
@@ -54,9 +51,6 @@ export function useMessageContextMenu({
 	}
 
 	function openMessageContextMenu(event: MouseEvent, message: ContextMessage) {
-		if (!canModerateMessages.value) {
-			return;
-		}
 		event.preventDefault();
 		cancelMessageLongPress();
 		openMessageMenuAt(message, event.clientX, event.clientY);
@@ -64,7 +58,7 @@ export function useMessageContextMenu({
 
 	function startMessageLongPress(event: PointerEvent, message: ContextMessage) {
 		cancelMessageLongPress();
-		if (!canModerateMessages.value || event.pointerType === "mouse") {
+		if (event.pointerType === "mouse") {
 			return;
 		}
 

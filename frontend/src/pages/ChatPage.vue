@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowLeft, Bell, BellOff, Menu, Settings, UsersRound } from '@lucide/vue';
+import { ArrowLeft, Bell, BellOff, ChevronDown, Menu, Settings, UsersRound } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDemoMode } from '../runtime.js';
@@ -148,6 +148,11 @@ const {
 const selectedMessageIsPinned = computed(
   () => Number(messageMenu.value.message?.id) === Number(pinnedMessage.value?.id)
 );
+const canDeleteSelectedMessage = computed(() => {
+  const msg = messageMenu.value.message;
+  if (!msg) return false;
+  return isOwnMessage(msg) || canModerateMessages.value;
+});
 
 const roomManagement = useRoomManagement({
   activeRoom, channels, users, error, refreshSidebar, refreshAndOpen, canManageActiveRoom,
@@ -356,6 +361,23 @@ function formatBubbleTime(value) {
   return value ? formatLocaleTime(value) : '';
 }
 
+const showScrollToBottom = ref(false);
+
+function handleScroll() {
+  if (!messagesEl.value) return;
+  const { scrollTop, scrollHeight, clientHeight } = messagesEl.value;
+  showScrollToBottom.value = scrollHeight - scrollTop - clientHeight > 120;
+}
+
+function scrollToBottomSmooth() {
+  if (messagesEl.value) {
+    messagesEl.value.scrollTo({
+      top: messagesEl.value.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+}
+
 onBeforeUnmount(() => {
   cancelMessageLongPress();
   window.removeEventListener('focus', syncNotificationPermission);
@@ -558,7 +580,7 @@ onBeforeUnmount(() => {
           @unpin="unpinMessage(pinnedMessage.id)"
         />
 
-        <section ref="messagesEl" class="chat-messages">
+        <section ref="messagesEl" class="chat-messages" @scroll="handleScroll">
           <button v-if="messages.length" type="button" class="load-more-btn" @click="loadOlder">{{ t('chat.loadEarlier') }}</button>
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
           <div v-else-if="!messages.length" class="messages-hint">{{ t('chat.noMessages') }}</div>
@@ -613,12 +635,24 @@ onBeforeUnmount(() => {
           </template>
         </section>
 
+        <button
+          v-if="showScrollToBottom"
+          type="button"
+          class="scroll-to-bottom-btn"
+          title="下滑到底部"
+          aria-label="下滑到底部"
+          @click="scrollToBottomSmooth"
+        >
+          <ChevronDown :size="20" aria-hidden="true" />
+        </button>
+
         <MessageContextMenu
           :open="Boolean(messageMenu.message)"
           :x="messageMenu.x"
           :y="messageMenu.y"
           :can-pin="canPinMessages"
           :pinned="selectedMessageIsPinned"
+          :can-delete="canDeleteSelectedMessage"
           @close="closeMessageMenu"
           @pin="pinSelectedMessage"
           @unpin="unpinSelectedMessage"
@@ -1077,6 +1111,35 @@ onBeforeUnmount(() => {
 
 .chat-messages::-webkit-scrollbar { width: 6px; }
 .chat-messages::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 3px; }
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  right: 24px;
+  bottom: 76px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e9edef;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #54656f;
+  box-shadow: 0 3px 10px rgba(11, 20, 26, 0.18);
+  cursor: pointer;
+  transition: transform 180ms ease, background 150ms, color 150ms;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: #f5f6f6;
+  color: #111b21;
+  transform: translateY(-2px);
+}
+
+.scroll-to-bottom-btn:active {
+  transform: translateY(0);
+}
 
 .load-more-btn {
   display: block;

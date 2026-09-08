@@ -11,7 +11,7 @@ const error = ref('');
 const saving = ref(false);
 const iconUploading = ref(false);
 const iconFileInputEl = ref(null);
-const siteForm = reactive({ siteName: 'Edgechat', siteIconUrl: '' });
+const siteForm = reactive({ siteName: 'Edgechat', siteIconUrl: '', messageRetentionDays: 7 });
 
 async function loadSiteSettings() {
   loading.value = true;
@@ -20,6 +20,7 @@ async function loadSiteSettings() {
     const payload = await api.adminSiteSettings();
     siteForm.siteName = payload.site?.siteName || 'Edgechat';
     siteForm.siteIconUrl = payload.site?.siteIconUrl || '';
+    siteForm.messageRetentionDays = payload.site?.messageRetentionDays ?? 7;
   } catch (currentError) {
     error.value = currentError.message;
   } finally {
@@ -57,6 +58,7 @@ async function saveSiteSettings() {
     const payload = await api.updateAdminSiteSettings(siteForm);
     siteForm.siteName = payload.site.siteName;
     siteForm.siteIconUrl = payload.site.siteIconUrl;
+    siteForm.messageRetentionDays = payload.site.messageRetentionDays;
     store.setSite(payload.site);
   } catch (currentError) {
     error.value = currentError.message;
@@ -88,6 +90,10 @@ onMounted(loadSiteSettings);
     <label class="field">
       <span>{{ t('site.iconUrl') }}</span>
       <input v-model.trim="siteForm.siteIconUrl" :placeholder="t('site.iconUrlPlaceholder')" />
+    </label>
+    <label class="field">
+      <span>消息自动删除天数（保留天数，超时消息及R2附件将被自动清理）</span>
+      <input v-model.number="siteForm.messageRetentionDays" type="number" min="1" placeholder="7" />
     </label>
     <div class="inline-actions">
       <input ref="iconFileInputEl" type="file" accept="image/*" hidden @change="uploadSiteIcon" />

@@ -16,6 +16,11 @@ const previewOpen = ref(false);
 const previewEl = ref(null);
 const imageFailed = ref(false);
 const isImage = computed(() => isPreviewableImageAttachment(props.attachment));
+const isAudio = computed(() => {
+  const type = props.attachment?.type || '';
+  const name = props.attachment?.name || '';
+  return type.startsWith('audio/') || /\.(webm|mp3|ogg|m4a|wav)$/i.test(name);
+});
 const displayName = computed(() => props.attachment?.name || t('attachments.fallback'));
 const openOriginalLabel = computed(() => t('attachments.openOriginalNamed', { name: displayName.value }));
 const attachmentUrl = computed(() => api.getFileUrl(props.attachment?.key || props.attachment?.url));
@@ -105,6 +110,12 @@ watch(
       </Teleport>
     </template>
 
+    <template v-else-if="isAudio">
+      <div class="message-attachment__audio">
+        <audio controls :src="attachmentUrl" preload="metadata" class="audio-player"></audio>
+      </div>
+    </template>
+
     <a
       v-else
       :href="attachmentUrl"
@@ -116,3 +127,16 @@ watch(
     </a>
   </div>
 </template>
+
+<style scoped>
+.message-attachment__audio {
+  margin-top: 6px;
+  max-width: 280px;
+}
+.audio-player {
+  width: 100%;
+  height: 36px;
+  border-radius: 18px;
+  outline: none;
+}
+</style>

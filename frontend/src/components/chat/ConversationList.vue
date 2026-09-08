@@ -81,7 +81,8 @@ const emit = defineEmits(["select"]);
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding: 0;
-	touch-action: pan-y;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior-y: contain;
 }
 
 .sidebar-list::-webkit-scrollbar {
@@ -114,7 +115,6 @@ const emit = defineEmits(["select"]);
 	background: transparent;
 	cursor: pointer;
 	text-align: left;
-	touch-action: manipulation;
 	transition: background 150ms;
 }
 

@@ -1,6 +1,6 @@
 <script setup>
-import { ArrowRight, Paperclip } from "@lucide/vue";
-import { computed, nextTick, ref } from "vue";
+import { ArrowRight, Mic, Paperclip, Square, Trash2 } from "@lucide/vue";
+import { computed, nextTick, ref, onBeforeUnmount } from "vue";
 import { t } from "../../i18n.js";
 import UiTextarea from "../ui/Textarea.vue";
 import UiAvatar from "../ui/Avatar.vue";
@@ -44,6 +44,13 @@ const textarea = ref(null);
 const mentionStart = ref(-1);
 const mentionQuery = ref("");
 const activeMentionIndex = ref(0);
+
+const isRecording = ref(false);
+const recordingDuration = ref(0);
+let timer = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
 const filteredMentions = computed(() => {
 	const query = mentionQuery.value.toLocaleLowerCase();
 	return props.mentionCandidates
@@ -86,12 +93,11 @@ function handleKeydown(event) {
 			return;
 		}
 	}
-	if (event.key === "Enter" && !event.shiftKey) {
+	if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
 		event.preventDefault();
-		if (sendDisabled.value) {
-			return;
+		if (!sendDisabled.value) {
+			emit("send");
 		}
-		emit("send");
 	}
 }
 
@@ -135,6 +141,72 @@ function selectMention(member) {
 function openPicker() {
 	fileInput.value?.click();
 }
+
+async function startRecording() {
+	if (props.disabled || isRecording.value) return;
+	try {
+		const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		mediaRecorder = new MediaRecorder(stream);
+		audioChunks = [];
+		mediaRecorder.ondataavailable = (e) => {
+			if (e.data.size > 0) audioChunks.push(e.data);
+		};
+		mediaRecorder.start();
+		isRecording.value = true;
+		recordingDuration.value = 0;
+		timer = setInterval(() => {
+			recordingDuration.value += 1;
+		}, 1000);
+	} catch (err) {
+		console.error("无法访问麦克风:", err);
+		alert("无法访问麦克风，请检查浏览器权限。");
+	}
+}
+
+function stopRecording(shouldSend = true) {
+	if (!mediaRecorder || !isRecording.value) return;
+	if (timer) {
+		clearInterval(timer);
+		timer = null;
+	}
+
+	mediaRecorder.onstop = () => {
+		const tracks = mediaRecorder.stream.getTracks();
+		tracks.forEach((track) => track.stop());
+
+		if (shouldSend && audioChunks.length > 0) {
+			const mimeType = mediaRecorder.mimeType || "audio/webm";
+			const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+			const audioBlob = new Blob(audioChunks, { type: mimeType });
+			const file = new File([audioBlob], `voice-message.${ext}`, { type: mimeType });
+			const customEvent = { target: { files: [file] } };
+			emit("upload", customEvent);
+		}
+		isRecording.value = false;
+		recordingDuration.value = 0;
+		audioChunks = [];
+		mediaRecorder = null;
+	};
+	mediaRecorder.stop();
+}
+
+function cancelRecording() {
+	stopRecording(false);
+}
+
+function formatDuration(seconds) {
+	const mins = Math.floor(seconds / 60);
+	const secs = seconds % 60;
+	return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+}
+
+onBeforeUnmount(() => {
+	if (timer) clearInterval(timer);
+	if (mediaRecorder && mediaRecorder.state !== "inactive") {
+		const tracks = mediaRecorder.stream.getTracks();
+		tracks.forEach((track) => track.stop());
+	}
+});
 </script>
 
 <template>
@@ -176,39 +248,77 @@ function openPicker() {
 				class="composer-file-input"
 				@change="emit('upload', $event)"
 			/>
-			<button
-				type="button"
-				class="composer-btn"
-				:disabled="disabled"
-				:title="t('chat.addAttachment')"
-				:aria-label="t('chat.addAttachment')"
-				@click="openPicker"
-			>
-				<Paperclip :size="20" aria-hidden="true" />
-			</button>
-			<UiTextarea
-				ref="textarea"
-				:model-value="modelValue"
-				class="composer-input"
-				auto-grow
-				:max-height="120"
-				rows="1"
-				:disabled="disabled"
-				:placeholder="t('chat.messagePlaceholder')"
-				@update:model-value="emit('update:modelValue', $event)"
-				@input="syncMentionQuery"
-				@keydown="handleKeydown"
-			/>
-			<button
-				type="button"
-				class="composer-send"
-				:disabled="sendDisabled"
-				:title="t('chat.sendMessage')"
-				:aria-label="t('chat.sendMessage')"
-				@click="emit('send')"
-			>
-				<ArrowRight :size="22" aria-hidden="true" />
-			</button>
+
+			<template v-if="isRecording">
+				<div class="composer-recording-bar">
+					<span class="recording-indicator"></span>
+					<span class="recording-time">{{ formatDuration(recordingDuration) }}</span>
+				</div>
+				<button
+					type="button"
+					class="composer-btn composer-btn--danger"
+					title="取消录音"
+					aria-label="取消录音"
+					@click="cancelRecording"
+				>
+					<Trash2 :size="20" aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					class="composer-send"
+					title="发送语音"
+					aria-label="发送语音"
+					@click="stopRecording(true)"
+				>
+					<ArrowRight :size="22" aria-hidden="true" />
+				</button>
+			</template>
+
+			<template v-else>
+				<button
+					type="button"
+					class="composer-btn"
+					:disabled="disabled"
+					:title="t('chat.addAttachment')"
+					:aria-label="t('chat.addAttachment')"
+					@click="openPicker"
+				>
+					<Paperclip :size="20" aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					class="composer-btn"
+					:disabled="disabled"
+					title="录制语音消息"
+					aria-label="录制语音消息"
+					@click="startRecording"
+				>
+					<Mic :size="20" aria-hidden="true" />
+				</button>
+				<UiTextarea
+					ref="textarea"
+					:model-value="modelValue"
+					class="composer-input"
+					auto-grow
+					:max-height="120"
+					rows="1"
+					:disabled="disabled"
+					:placeholder="t('chat.messagePlaceholder')"
+					@update:model-value="emit('update:modelValue', $event)"
+					@input="syncMentionQuery"
+					@keydown="handleKeydown"
+				/>
+				<button
+					type="button"
+					class="composer-send"
+					:disabled="sendDisabled"
+					:title="t('chat.sendMessage')"
+					:aria-label="t('chat.sendMessage')"
+					@click="emit('send')"
+				>
+					<ArrowRight :size="22" aria-hidden="true" />
+				</button>
+			</template>
 		</div>
 	</footer>
 </template>
@@ -382,6 +492,46 @@ function openPicker() {
 /* biome-ignore lint/correctness/noUnknownPseudoClass: Vue deep selector */
 :deep(.composer-input.ui-textarea::placeholder) {
 	color: #8696a0;
+}
+
+.composer-btn--danger {
+	color: #ef4444;
+}
+
+.composer-btn--danger:hover:not(:disabled) {
+	background: rgba(239, 68, 68, 0.1);
+	color: #dc2626;
+}
+
+.composer-recording-bar {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 10px;
+	height: 40px;
+	padding: 0 14px;
+	border-radius: 8px;
+	background: #ffffff;
+}
+
+.recording-indicator {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #ef4444;
+	animation: blink 1s infinite;
+}
+
+.recording-time {
+	color: #111b21;
+	font-size: 14px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+@keyframes blink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.3; }
 }
 
 @media (max-width: 960px) {

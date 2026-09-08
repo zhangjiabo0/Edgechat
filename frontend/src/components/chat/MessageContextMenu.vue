@@ -8,7 +8,8 @@ const props = defineProps({
   x: { type: Number, default: 0 },
   y: { type: Number, default: 0 },
   canPin: { type: Boolean, default: false },
-  pinned: { type: Boolean, default: false }
+  pinned: { type: Boolean, default: false },
+  canDelete: { type: Boolean, default: true }
 });
 const emit = defineEmits(['close', 'pin', 'unpin', 'delete']);
 
@@ -84,6 +85,7 @@ onBeforeUnmount(() => {
           {{ pinned ? t('messages.unpin') : t('messages.pin') }}
         </button>
         <button
+          v-if="canDelete"
           class="message-context-menu__danger"
           type="button"
           role="menuitem"
