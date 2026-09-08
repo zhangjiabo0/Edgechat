@@ -60,7 +60,7 @@ test("会话流程统一按 kind 和 id 查找并在打开后切换聊天视图"
 	]);
 });
 
-test("消息菜单只允许有管理权限的右键和触摸长按打开", () => {
+test("消息菜单支持右键和触摸长按打开", () => {
 	const canModerateMessages = ref(true);
 	const menu = useMessageContextMenu({ canModerateMessages });
 	let prevented = false;
@@ -82,12 +82,15 @@ test("消息菜单只允许有管理权限的右键和触摸长按打开", () =>
 	});
 
 	menu.closeMessageMenu();
-	canModerateMessages.value = false;
 	menu.openMessageContextMenu(
 		{ clientX: 30, clientY: 40, preventDefault() {} },
 		{ id: 2 },
 	);
-	assert.equal(menu.messageMenu.value.message, null);
+	assert.deepEqual(menu.messageMenu.value, {
+		message: { id: 2 },
+		x: 30,
+		y: 40,
+	});
 
 	canModerateMessages.value = true;
 	const nativeSetTimeout = globalThis.setTimeout;

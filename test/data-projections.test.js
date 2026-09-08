@@ -214,11 +214,13 @@ test("站点设置 projection 使用稳定默认值", async () => {
 	assert.deepEqual(await getSiteSettings(configured.db), {
 		siteName: "CFChat",
 		siteIconUrl: "/icon.png",
+		messageRetentionDays: 7,
 	});
 	const defaults = createQueryDb([]);
 	assert.deepEqual(await getSiteSettings(defaults.db), {
 		siteName: "Edgechat",
 		siteIconUrl: "",
+		messageRetentionDays: 7,
 	});
 });
 
