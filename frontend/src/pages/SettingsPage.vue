@@ -341,31 +341,15 @@ async function changePassword() {
             />
             <div class="avatar-actions">
               <span class="avatar-hint">{{ uploadingAvatar ? `${t('common.uploading')} ${avatarUploadProgress}%` : t('settings.changeAvatarHint') }}</span>
-              <div class="avatar-action-buttons">
-                <button
-                  type="button"
-                  class="avatar-action-btn"
-                  @click="previewAvatar(session)"
-                >
-                  {{ t('chat.avatarPreview') }}
-                </button>
-                <button
-                  type="button"
-                  class="avatar-action-btn"
-                  @click="openAvatarPicker"
-                >
-                  {{ t('settings.changeAvatarTitle') }}
-                </button>
-                <button
-                  v-if="session?.avatarUrl"
-                  type="button"
-                  class="avatar-remove"
-                  :disabled="uploadingAvatar"
-                  @click="removeAvatar"
-                >
-                  {{ t('settings.removeAvatar') }}
-                </button>
-              </div>
+              <button
+                v-if="session?.avatarUrl"
+                type="button"
+                class="avatar-remove"
+                :disabled="uploadingAvatar"
+                @click="removeAvatar"
+              >
+                {{ t('settings.removeAvatar') }}
+              </button>
             </div>
           </div>
         </div>
