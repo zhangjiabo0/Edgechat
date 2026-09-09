@@ -57,19 +57,37 @@ const avatarPreviewModal = reactive({
   user: null
 });
 
+function extractTargetUser(userOrRoom) {
+  if (!userOrRoom) return null;
+
+  if (userOrRoom.kind === 'dm' && userOrRoom.otherUser) {
+    return userOrRoom.otherUser;
+  }
+
+  if (userOrRoom.kind === 'channel' || userOrRoom.kind === 'group' || userOrRoom.kind === 'public' || userOrRoom.kind === 'private' || userOrRoom.kind === 'external') {
+    return null;
+  }
+
+  const userId = userOrRoom.id || userOrRoom.userId;
+  if (userId) {
+    return {
+      id: userId,
+      displayName: userOrRoom.displayName || userOrRoom.name || userOrRoom.username || '',
+      username: userOrRoom.username || '',
+      avatarUrl: userOrRoom.avatarUrl || ''
+    };
+  }
+
+  return null;
+}
+
 function previewAvatar(userOrRoom) {
   if (!userOrRoom) return;
-  const rawUrl = userOrRoom.avatarUrl || userOrRoom.src || (userOrRoom.otherUser?.avatarUrl) || '';
+  const targetUser = extractTargetUser(userOrRoom);
+  const rawUrl = userOrRoom.avatarUrl || userOrRoom.src || userOrRoom.otherUser?.avatarUrl || targetUser?.avatarUrl || '';
   const src = rawUrl ? api.getFileUrl(rawUrl) : '';
-  const name = userOrRoom.displayName || userOrRoom.title || userOrRoom.name || userOrRoom.otherUser?.displayName || t('chat.avatarPreview');
+  const name = userOrRoom.displayName || userOrRoom.title || userOrRoom.name || userOrRoom.otherUser?.displayName || targetUser?.displayName || t('chat.avatarPreview');
   const fallback = (name || '?').slice(0, 2).toUpperCase();
-
-  let targetUser = null;
-  if (userOrRoom.kind === 'dm' && userOrRoom.otherUser) {
-    targetUser = userOrRoom.otherUser;
-  } else if (!userOrRoom.kind && (userOrRoom.id || userOrRoom.username)) {
-    targetUser = userOrRoom;
-  }
 
   const currentUserId = session.value?.userId || session.value?.id;
   if (targetUser && targetUser.id && Number(targetUser.id) !== Number(currentUserId)) {
@@ -189,7 +207,7 @@ function handleRoomAccessRevoked(room) {
 }
 
 const {
-  messages, pinnedMessage, highlightedMessageId, loading, wsStatus, composerText, pendingAttachment, isUploadingAttachment, uploadProgress, sending,
+  messages, pinnedMessage, highlightedMessageId, loading, hasMore, wsStatus, composerText, pendingAttachment, isUploadingAttachment, uploadProgress, sending,
   messagesEl, isOwnMessage,
   loadMessages, activateRoom, deactivateRoom, disconnectSocket, sendMessage, deleteMessage,
   pinMessage, unpinMessage, revealPinnedMessage,
@@ -473,8 +491,10 @@ function formatBubbleTime(value) {
 const showScrollToBottom = ref(false);
 const loadingOlder = ref(false);
 
+let lastScrollTop = 0;
+
 async function triggerLoadOlder() {
-  if (loading.value || loadingOlder.value || showMessageSearch.value || !messages.value.length) return;
+  if (!hasMore.value || loading.value || loadingOlder.value || showMessageSearch.value || !messages.value.length) return;
   const container = messagesEl.value;
   if (!container) return;
 
@@ -502,14 +522,17 @@ function handleScroll() {
   const { scrollTop, scrollHeight, clientHeight } = messagesEl.value;
   showScrollToBottom.value = scrollHeight - scrollTop - clientHeight > 120;
 
-  if (scrollTop <= 50) {
+  const isScrollingUp = scrollTop < lastScrollTop;
+  lastScrollTop = scrollTop;
+
+  if (isScrollingUp && scrollTop <= 50 && hasMore.value) {
     void triggerLoadOlder();
   }
 }
 
 function handleWheel(event) {
   if (!messagesEl.value) return;
-  if (event.deltaY < 0 && messagesEl.value.scrollTop <= 50) {
+  if (event.deltaY < 0 && messagesEl.value.scrollTop <= 50 && hasMore.value) {
     void triggerLoadOlder();
   }
 }
@@ -750,7 +773,7 @@ onBeforeUnmount(() => {
         </div>
 
         <section ref="messagesEl" class="chat-messages" @scroll="handleScroll" @wheel="handleWheel">
-          <button v-if="messages.length && !showMessageSearch" type="button" class="load-more-btn" @click="triggerLoadOlder">{{ t('chat.loadEarlier') }}</button>
+          <button v-if="hasMore && messages.length && !showMessageSearch" type="button" class="load-more-btn" @click="triggerLoadOlder">{{ t('chat.loadEarlier') }}</button>
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
           <div v-else-if="showMessageSearch && messageSearchQuery && !filteredMessages.length" class="messages-hint">{{ t('chat.noMatchingMessages') }}</div>
           <div v-else-if="!messages.length" class="messages-hint">{{ t('chat.noMessages') }}</div>

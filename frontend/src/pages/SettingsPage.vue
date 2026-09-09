@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api.js';
 import store from '../store.js';
+import { X } from '@lucide/vue';
 import UiAvatar from '../components/ui/Avatar.vue';
 import LanguageSwitch from '../components/ui/LanguageSwitch.vue';
 import { useI18n } from '../i18n.js';
@@ -28,6 +29,30 @@ const savingPassword = ref(false);
 const uploadingAvatar = ref(false);
 const avatarUploadProgress = ref(0);
 const avatarInputEl = ref(null);
+
+const avatarPreviewModal = reactive({
+  open: false,
+  src: '',
+  name: '',
+  fallback: ''
+});
+
+function previewAvatar(user) {
+  if (!user) return;
+  const rawUrl = user.avatarUrl || '';
+  const src = rawUrl ? api.getFileUrl(rawUrl) : '';
+  const name = user.displayName || user.username || t('chat.avatarPreview');
+  const fallback = (name || '?').slice(0, 2).toUpperCase();
+
+  avatarPreviewModal.src = src;
+  avatarPreviewModal.name = name;
+  avatarPreviewModal.fallback = fallback;
+  avatarPreviewModal.open = true;
+}
+
+function closeAvatarPreviewModal() {
+  avatarPreviewModal.open = false;
+}
 
 const showCropper = ref(false);
 const cropperCanvas = ref(null);
@@ -284,17 +309,19 @@ async function changePassword() {
         <div class="settings-header__right">
           <LanguageSwitch />
           <div class="avatar-block">
-            <button type="button" class="avatar-trigger" @click="openAvatarPicker" :title="t('settings.changeAvatarTitle')">
+            <div class="avatar-trigger" :title="t('settings.changeAvatarTitle')">
               <UiAvatar
                 :src="session?.avatarUrl"
                 :alt="t('settings.avatarAlt')"
                 :fallback="session?.displayName || session?.username || 'U'"
                 size="md"
+                style="cursor: pointer;"
+                @click="previewAvatar(session)"
               />
-              <span class="avatar-overlay">
+              <button type="button" class="avatar-overlay" :title="t('settings.changeAvatarTitle')" @click="openAvatarPicker">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><title>{{ t('settings.changeAvatar') }}</title><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              </span>
-            </button>
+              </button>
+            </div>
             <input
               ref="avatarInputEl"
               type="file"
@@ -304,15 +331,24 @@ async function changePassword() {
             />
             <div class="avatar-actions">
               <span class="avatar-hint">{{ uploadingAvatar ? `${t('common.uploading')} ${avatarUploadProgress}%` : t('settings.changeAvatarHint') }}</span>
-              <button
-                v-if="session?.avatarUrl"
-                type="button"
-                class="avatar-remove"
-                :disabled="uploadingAvatar"
-                @click="removeAvatar"
-              >
-                {{ t('settings.removeAvatar') }}
-              </button>
+              <div class="avatar-action-buttons">
+                <button
+                  type="button"
+                  class="avatar-action-btn"
+                  @click="openAvatarPicker"
+                >
+                  {{ t('settings.changeAvatarTitle') }}
+                </button>
+                <button
+                  v-if="session?.avatarUrl"
+                  type="button"
+                  class="avatar-remove"
+                  :disabled="uploadingAvatar"
+                  @click="removeAvatar"
+                >
+                  {{ t('settings.removeAvatar') }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -395,6 +431,43 @@ async function changePassword() {
         </button>
       </nav>
     </div>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="avatarPreviewModal.open"
+          class="avatar-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          @click.self="closeAvatarPreviewModal"
+        >
+          <div class="avatar-modal-card">
+            <button
+              type="button"
+              class="avatar-modal-close"
+              :aria-label="t('common.close')"
+              @click="closeAvatarPreviewModal"
+            >
+              <X :size="20" aria-hidden="true" />
+            </button>
+            <div class="avatar-modal-header">
+              <h3>{{ avatarPreviewModal.name }}</h3>
+            </div>
+            <div class="avatar-modal-body">
+              <img
+                v-if="avatarPreviewModal.src"
+                :src="avatarPreviewModal.src"
+                :alt="avatarPreviewModal.name"
+                class="avatar-modal-img"
+              />
+              <div v-else class="avatar-modal-fallback">
+                <span>{{ avatarPreviewModal.fallback }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <Transition name="modal">
       <div v-if="showCropper" class="crop-modal" @click.self="cancelCrop">
@@ -990,5 +1063,116 @@ async function changePassword() {
     opacity: 1;
     transform: none;
   }
+}
+
+.avatar-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(11, 20, 26, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.avatar-modal-card {
+  position: relative;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  animation: modalScale 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.avatar-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #54656f;
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+
+.avatar-modal-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #111b21;
+}
+
+.avatar-modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111b21;
+  text-align: center;
+}
+
+.avatar-modal-body {
+  width: 240px;
+  height: 240px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+}
+
+.avatar-modal-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-modal-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #008069 0%, #10b981 100%);
+  color: #ffffff;
+  font-size: 64px;
+  font-weight: 700;
+}
+
+.avatar-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-action-btn {
+  background: transparent;
+  border: none;
+  color: #008069;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.avatar-action-btn:hover {
+  text-decoration: underline;
 }
 </style>

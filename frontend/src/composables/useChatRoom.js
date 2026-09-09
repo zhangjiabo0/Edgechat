@@ -24,6 +24,7 @@ export function useChatRoom({
 	const pinnedMessage = ref(null);
 	const highlightedMessageId = ref(null);
 	const loading = ref(false);
+	const hasMore = ref(true);
 	const wsStatus = ref("closed");
 	const composerText = ref("");
 	const pendingAttachment = ref(null);
@@ -192,9 +193,15 @@ export function useChatRoom({
 			if (generation !== messageLoadGeneration || roomKey() !== key) {
 				return false;
 			}
-			messages.value = append
-				? mergeMessages(payload.messages, messages.value)
-				: payload.messages;
+			if (append) {
+				if (!payload.messages || payload.messages.length === 0) {
+					hasMore.value = false;
+				}
+				messages.value = mergeMessages(payload.messages, messages.value);
+			} else {
+				messages.value = payload.messages || [];
+				hasMore.value = true;
+			}
 			pinnedMessage.value = payload.pinnedMessage || null;
 			await nextTick();
 			if (!append) {
@@ -219,6 +226,7 @@ export function useChatRoom({
 		pinnedMessage.value = null;
 		clearMessageHighlight();
 		loading.value = false;
+		hasMore.value = true;
 		connectSocket();
 		return loadMessages();
 	}
@@ -229,6 +237,7 @@ export function useChatRoom({
 		pinnedMessage.value = null;
 		clearMessageHighlight();
 		loading.value = false;
+		hasMore.value = true;
 		disconnectSocket();
 	}
 
@@ -411,6 +420,7 @@ export function useChatRoom({
 		pinnedMessage,
 		highlightedMessageId,
 		loading,
+		hasMore,
 		wsStatus,
 		composerText,
 		pendingAttachment,
