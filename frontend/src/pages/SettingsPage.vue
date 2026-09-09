@@ -616,6 +616,13 @@ async function changePassword() {
   transform: scale(1.15);
 }
 
+.settings-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
 .avatar-input {
   position: absolute;
   width: 1px;
@@ -1046,7 +1053,10 @@ async function changePassword() {
 
   .settings-header__right {
     width: 100%;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    flex-wrap: nowrap;
   }
 
   .avatar-compact {
