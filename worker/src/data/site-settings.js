@@ -41,7 +41,7 @@ export async function updateSiteSettings(db, { siteName, siteIconUrl, messageRet
 		);
 	}
 	if (messageRetentionDays !== undefined) {
-		const days = Math.max(1, Math.floor(Number(messageRetentionDays) || 7));
+		const days = Math.max(0, Math.floor(Number(messageRetentionDays) || 0));
 		statements.push(
 			db
 				.prepare(

@@ -75,6 +75,13 @@ export function registerAdminRoutes(app) {
       return errorResponse('站点名称不能为空');
     }
 
+    if (messageRetentionDays !== undefined) {
+      const days = Number(messageRetentionDays);
+      if (!Number.isInteger(days) || days < 0) {
+        return errorResponse('消息自动删除天数必须是非负整数');
+      }
+    }
+
     const site = await updateSiteSettings(c.env.DB, { siteName, siteIconUrl, messageRetentionDays });
     return c.json({ site });
   });

@@ -138,7 +138,7 @@ onMounted(loadState);
         </div>
         <form class="telegram-mapping-form" @submit.prevent="createMapping">
           <label class="field">
-            <span>{{ t('telegram.edgechatPublicGroup') }}</span>
+            <span>{{ t('telegram.edgechatPublicGroup', { siteName }) }}</span>
             <select v-model="mappingForm.channelId" required>
               <option disabled value="">{{ t('telegram.selectGroup') }}</option>
               <option v-for="channel in state.channels" :key="channel.id" :value="channel.id">

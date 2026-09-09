@@ -21,13 +21,21 @@ function toPositiveInteger(value, fallback) {
   return Math.floor(parsed);
 }
 
+function toNonNegativeInteger(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+}
+
 async function getGcConfig(env) {
   let dbRetention = null;
   try {
     const { results } = await env.DB.prepare(
       `SELECT setting_value FROM site_settings WHERE setting_key = 'message_retention_days' LIMIT 1`
     ).all();
-    if (results && results[0]?.setting_value) {
+    if (results && results[0]?.setting_value !== undefined && results[0]?.setting_value !== null) {
       dbRetention = Number(results[0].setting_value);
     }
   } catch (err) {
@@ -35,7 +43,7 @@ async function getGcConfig(env) {
   }
 
   return {
-    messageRetentionDays: toPositiveInteger(
+    messageRetentionDays: toNonNegativeInteger(
       dbRetention ?? env.MESSAGE_RETENTION_DAYS,
       DEFAULT_MESSAGE_RETENTION_DAYS
     ),
@@ -117,35 +125,37 @@ async function runMobileProtocolCleanupStep(env, config, summary) {
     .run();
   summary.expiredRealtimeTicketsDeleted = Number(ticketResult.meta?.changes || 0);
 
-  const eventCutoff = `-${config.messageRetentionDays} day`;
-  const [, eventResult] = await env.DB.batch([
-    env.DB.prepare(
-      `INSERT INTO message_event_compaction (channel_id, compacted_through, updated_at)
-       SELECT channel_id, MAX(sequence), CURRENT_TIMESTAMP
-       FROM (
-         SELECT sequence, channel_id
-         FROM message_events
-         WHERE created_at < datetime('now', ?)
-         ORDER BY sequence ASC
-         LIMIT ?
-       ) AS expired_events
-       WHERE true
-       GROUP BY channel_id
-       ON CONFLICT(channel_id) DO UPDATE SET
-         compacted_through = MAX(message_event_compaction.compacted_through, excluded.compacted_through),
-         updated_at = CURRENT_TIMESTAMP`
-    ).bind(eventCutoff, config.batchSize),
-    env.DB.prepare(
-      `DELETE FROM message_events
-       WHERE sequence IN (
-         SELECT sequence FROM message_events
-         WHERE created_at < datetime('now', ?)
-         ORDER BY sequence ASC
-         LIMIT ?
-       )`
-    ).bind(eventCutoff, config.batchSize)
-  ]);
-  summary.expiredMessageEventsDeleted = Number(eventResult.meta?.changes || 0);
+  if (config.messageRetentionDays > 0) {
+    const eventCutoff = `-${config.messageRetentionDays} day`;
+    const [, eventResult] = await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO message_event_compaction (channel_id, compacted_through, updated_at)
+         SELECT channel_id, MAX(sequence), CURRENT_TIMESTAMP
+         FROM (
+           SELECT sequence, channel_id
+           FROM message_events
+           WHERE created_at < datetime('now', ?)
+           ORDER BY sequence ASC
+           LIMIT ?
+         ) AS expired_events
+         WHERE true
+         GROUP BY channel_id
+         ON CONFLICT(channel_id) DO UPDATE SET
+           compacted_through = MAX(message_event_compaction.compacted_through, excluded.compacted_through),
+           updated_at = CURRENT_TIMESTAMP`
+      ).bind(eventCutoff, config.batchSize),
+      env.DB.prepare(
+        `DELETE FROM message_events
+         WHERE sequence IN (
+           SELECT sequence FROM message_events
+           WHERE created_at < datetime('now', ?)
+           ORDER BY sequence ASC
+           LIMIT ?
+         )`
+      ).bind(eventCutoff, config.batchSize)
+    ]);
+    summary.expiredMessageEventsDeleted = Number(eventResult.meta?.changes || 0);
+  }
 
   const deviceResult = await env.DB.prepare(
     `DELETE FROM device_sessions
@@ -382,6 +392,10 @@ async function runRetryQueueStep(env, config, summary) {
 }
 
 async function runExpiredMessagesStep(env, config, summary) {
+  if (config.messageRetentionDays <= 0) {
+    return;
+  }
+
   let batches = 0;
 
   while (batches < config.maxBatchesPerRun) {

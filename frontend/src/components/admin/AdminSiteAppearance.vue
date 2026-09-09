@@ -11,7 +11,9 @@ const error = ref('');
 const saving = ref(false);
 const iconUploading = ref(false);
 const iconFileInputEl = ref(null);
-const siteForm = reactive({ siteName: 'Edgechat', siteIconUrl: '', messageRetentionDays: 7 });
+const siteForm = reactive({ siteName: 'Edgechat', siteIconUrl: '' });
+const retentionEnabled = ref(true);
+const retentionDaysInput = ref(7);
 
 async function loadSiteSettings() {
   loading.value = true;
@@ -20,7 +22,15 @@ async function loadSiteSettings() {
     const payload = await api.adminSiteSettings();
     siteForm.siteName = payload.site?.siteName || 'Edgechat';
     siteForm.siteIconUrl = payload.site?.siteIconUrl || '';
-    siteForm.messageRetentionDays = payload.site?.messageRetentionDays ?? 7;
+
+    const days = payload.site?.messageRetentionDays;
+    if (days !== undefined && days !== null && Number(days) === 0) {
+      retentionEnabled.value = false;
+      retentionDaysInput.value = 7;
+    } else {
+      retentionEnabled.value = true;
+      retentionDaysInput.value = Math.max(1, Math.floor(Number(days) || 7));
+    }
   } catch (currentError) {
     error.value = currentError.message;
   } finally {
@@ -55,10 +65,26 @@ async function saveSiteSettings() {
   saving.value = true;
   error.value = '';
   try {
-    const payload = await api.updateAdminSiteSettings(siteForm);
+    const messageRetentionDays = retentionEnabled.value
+      ? Math.max(1, Math.floor(Number(retentionDaysInput.value) || 7))
+      : 0;
+
+    const payload = await api.updateAdminSiteSettings({
+      siteName: siteForm.siteName,
+      siteIconUrl: siteForm.siteIconUrl,
+      messageRetentionDays
+    });
+
     siteForm.siteName = payload.site.siteName;
     siteForm.siteIconUrl = payload.site.siteIconUrl;
-    siteForm.messageRetentionDays = payload.site.messageRetentionDays;
+
+    if (payload.site.messageRetentionDays === 0) {
+      retentionEnabled.value = false;
+    } else {
+      retentionEnabled.value = true;
+      retentionDaysInput.value = payload.site.messageRetentionDays;
+    }
+
     store.setSite(payload.site);
   } catch (currentError) {
     error.value = currentError.message;
@@ -91,10 +117,22 @@ onMounted(loadSiteSettings);
       <span>{{ t('site.iconUrl') }}</span>
       <input v-model.trim="siteForm.siteIconUrl" :placeholder="t('site.iconUrlPlaceholder')" />
     </label>
-    <label class="field">
-      <span>消息自动删除天数（保留天数，超时消息及R2附件将被自动清理）</span>
-      <input v-model.number="siteForm.messageRetentionDays" type="number" min="1" placeholder="7" />
-    </label>
+
+    <div class="retention-setting-group">
+      <label class="site-switch">
+        <input type="checkbox" v-model="retentionEnabled" />
+        <span aria-hidden="true"></span>
+        <span class="site-switch__label">{{ t('site.appearance.enableRetention') }}</span>
+      </label>
+      <label v-if="retentionEnabled" class="field retention-days-field">
+        <span>{{ t('site.appearance.retentionDays') }}</span>
+        <input v-model.number="retentionDaysInput" type="number" min="1" placeholder="7" />
+      </label>
+      <p v-else class="muted retention-disabled-hint">
+        {{ t('site.appearance.retentionDisabledHint') }}
+      </p>
+    </div>
+
     <div class="inline-actions">
       <input ref="iconFileInputEl" type="file" accept="image/*" hidden @change="uploadSiteIcon" />
       <UiButton variant="secondary" size="sm" :disabled="iconUploading" @click="openIconPicker">

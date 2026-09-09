@@ -44,6 +44,7 @@ const filteredNavigation = computed(() => {
 });
 
 const adminName = computed(() => store.session?.displayName || store.session?.username || 'Administrator');
+const siteName = computed(() => store.site?.siteName || 'Edgechat');
 
 function isPrimaryActive(item) {
   return route.path === item.to || route.path.startsWith(`${item.to}/`);
@@ -88,7 +89,7 @@ watch(
   <aside class="admin-sidebar" :class="{ 'admin-sidebar--open': mobileOpen }">
     <div class="admin-sidebar__brand-row">
       <button type="button" class="admin-brand" :aria-label="t('admin.sidebar.openDashboard')" @click="navigate('/admin/dashboard')">
-        {{ t('admin.sidebar.brand') }}
+        {{ t('admin.sidebar.brand', { siteName }) }}
       </button>
       <button
         type="button"

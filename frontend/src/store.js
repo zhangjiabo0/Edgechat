@@ -9,15 +9,32 @@ import {
 } from './auth-storage.js';
 
 const DEFAULT_SITE_ICON_URL = '/logo.svg';
+const SITE_METADATA_STORAGE_KEY = 'edgechat_site_metadata';
+
+function getStoredSiteMetadata() {
+  if (typeof window === 'undefined') {
+    return { siteName: 'Edgechat', siteIconUrl: '' };
+  }
+  try {
+    const raw = localStorage.getItem(SITE_METADATA_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.siteName === 'string' && parsed.siteName.trim()) {
+        return {
+          siteName: parsed.siteName.trim(),
+          siteIconUrl: String(parsed.siteIconUrl || '').trim()
+        };
+      }
+    }
+  } catch {}
+  return { siteName: 'Edgechat', siteIconUrl: '' };
+}
 
 const state = reactive({
   ready: false,
   token: isDemoMode ? runtimeSessionToken : getStoredToken(),
   session: null,
-  site: {
-    siteName: 'Edgechat',
-    siteIconUrl: ''
-  }
+  site: getStoredSiteMetadata()
 });
 
 function clearAuthState() {
@@ -27,6 +44,10 @@ function clearAuthState() {
 }
 
 function applySiteMetadata(site) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   const siteName = String(site?.siteName || 'Edgechat').trim() || 'Edgechat';
   const siteIconUrl = String(site?.siteIconUrl || '').trim();
   document.title = siteName;
@@ -43,6 +64,11 @@ function applySiteMetadata(site) {
   } else {
     favicon.setAttribute('href', DEFAULT_SITE_ICON_URL);
   }
+}
+
+// 模块首次装载时，立即同步应用已缓存的 metadata
+if (typeof window !== 'undefined') {
+  applySiteMetadata(state.site);
 }
 
 async function loadSite() {
@@ -99,10 +125,14 @@ function setSession(session) {
 }
 
 function setSite(site) {
-  state.site = {
-    siteName: String(site?.siteName || 'Edgechat').trim() || 'Edgechat',
-    siteIconUrl: String(site?.siteIconUrl || '').trim()
-  };
+  const siteName = String(site?.siteName || 'Edgechat').trim() || 'Edgechat';
+  const siteIconUrl = String(site?.siteIconUrl || '').trim();
+  state.site = { siteName, siteIconUrl };
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SITE_METADATA_STORAGE_KEY, JSON.stringify(state.site));
+    }
+  } catch {}
   applySiteMetadata(state.site);
 }
 

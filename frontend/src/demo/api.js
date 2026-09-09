@@ -481,7 +481,8 @@ export async function requestDemo(path, options = {}) {
   if (method === 'PATCH' && pathname === '/admin/site-settings') {
     demoState.site = {
       siteName: String(body.siteName || 'EdgeChat Demo').trim(),
-      siteIconUrl: String(body.siteIconUrl || '').trim()
+      siteIconUrl: String(body.siteIconUrl || '').trim(),
+      messageRetentionDays: body.messageRetentionDays !== undefined ? Number(body.messageRetentionDays) : (demoState.site.messageRetentionDays ?? 7)
     };
     return { site: cloneDemo(demoState.site) };
   }

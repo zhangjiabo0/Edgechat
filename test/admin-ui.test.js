@@ -45,7 +45,7 @@ test('后台默认进入仪表盘并新增受保护的注册邀请页', () => {
 });
 
 test('侧栏包含存储统计并移除消息查看入口', () => {
-  assert.match(sidebarSource, /t\('admin\.sidebar\.brand'\)/);
+  assert.match(sidebarSource, /t\('admin\.sidebar\.brand'/);
   for (const id of ['dashboard', 'users', 'storage', 'invites', 'telegram', 'site']) {
     assert.match(navigationSource, new RegExp(`id: '${id}'`));
   }

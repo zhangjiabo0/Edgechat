@@ -225,6 +225,15 @@ test("站点设置 projection 使用稳定默认值", async () => {
 		siteIconUrl: "",
 		messageRetentionDays: 7,
 	});
+	const disabledRetention = createQueryDb([
+		{ setting_key: "site_name", setting_value: "CFChat" },
+		{ setting_key: "message_retention_days", setting_value: "0" },
+	]);
+	assert.deepEqual(await getSiteSettings(disabledRetention.db), {
+		siteName: "CFChat",
+		siteIconUrl: "",
+		messageRetentionDays: 0,
+	});
 });
 
 test("消息 projection 保持附件和发送者字段", () => {
