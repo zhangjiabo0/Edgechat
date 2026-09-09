@@ -1,8 +1,9 @@
 <script setup>
-import { ArrowLeft, Bell, BellOff, ChevronDown, Menu, Search, Settings, UsersRound, X } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { ArrowLeft, Bell, BellOff, ChevronDown, Menu, MessageSquare, Search, Settings, UsersRound, X } from '@lucide/vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDemoMode } from '../runtime.js';
+import api from '../api.js';
 import AddConversationDialog from '../components/chat/AddConversationDialog.vue';
 import ConversationList from '../components/chat/ConversationList.vue';
 import CreateGroupDialog from '../components/chat/CreateGroupDialog.vue';
@@ -18,6 +19,7 @@ import SenderSourceBadge from '../components/chat/SenderSourceBadge.vue';
 import PublicGroupDiscovery from '../components/chat/PublicGroupDiscovery.vue';
 import PublicGroupJoinDialog from '../components/chat/PublicGroupJoinDialog.vue';
 import UiAvatar from '../components/ui/Avatar.vue';
+import UiButton from '../components/ui/Button.vue';
 import LanguageSwitch from '../components/ui/LanguageSwitch.vue';
 import { useActiveRoom } from '../composables/useActiveRoom.js';
 import { useBrowserNotifications } from '../composables/useBrowserNotifications.js';
@@ -41,10 +43,59 @@ const showMobileNavigation = ref(false);
 const publicGroupPreview = ref(null);
 const joiningPublicGroup = ref(false);
 const session = computed(() => store.session);
+const siteName = computed(() => store.site?.siteName || 'Edgechat');
 const showAdminEntry = computed(() => Boolean(session.value?.isAdmin));
 
 const showMessageSearch = ref(false);
 const messageSearchQuery = ref('');
+
+const avatarPreviewModal = reactive({
+  open: false,
+  src: '',
+  name: '',
+  fallback: '',
+  user: null
+});
+
+function previewAvatar(userOrRoom) {
+  if (!userOrRoom) return;
+  const rawUrl = userOrRoom.avatarUrl || userOrRoom.src || (userOrRoom.otherUser?.avatarUrl) || '';
+  const src = rawUrl ? api.getFileUrl(rawUrl) : '';
+  const name = userOrRoom.displayName || userOrRoom.title || userOrRoom.name || userOrRoom.otherUser?.displayName || t('chat.avatarPreview');
+  const fallback = (name || '?').slice(0, 2).toUpperCase();
+
+  let targetUser = null;
+  if (userOrRoom.kind === 'dm' && userOrRoom.otherUser) {
+    targetUser = userOrRoom.otherUser;
+  } else if (!userOrRoom.kind && (userOrRoom.id || userOrRoom.username)) {
+    targetUser = userOrRoom;
+  }
+
+  const currentUserId = session.value?.userId || session.value?.id;
+  if (targetUser && targetUser.id && Number(targetUser.id) !== Number(currentUserId)) {
+    avatarPreviewModal.user = targetUser;
+  } else {
+    avatarPreviewModal.user = null;
+  }
+
+  avatarPreviewModal.src = src;
+  avatarPreviewModal.name = name;
+  avatarPreviewModal.fallback = fallback;
+  avatarPreviewModal.open = true;
+}
+
+function closeAvatarPreviewModal() {
+  avatarPreviewModal.open = false;
+  avatarPreviewModal.user = null;
+}
+
+async function startDirectMessageFromAvatar() {
+  const targetUser = avatarPreviewModal.user;
+  closeAvatarPreviewModal();
+  if (targetUser) {
+    await openDm(targetUser);
+  }
+}
 
 const filteredMessages = computed(() => {
   const q = messageSearchQuery.value.trim().toLowerCase();
@@ -356,6 +407,34 @@ function pinSelectedMessage() {
   if (message) pinMessage(message.id);
 }
 
+async function copySelectedMessage() {
+  const message = messageMenu.value.message;
+  closeMessageMenu();
+  if (!message) return;
+
+  const content = message.content || '';
+  const attachmentName = message.attachment?.name || '';
+  const textToCopy = content && attachmentName ? `${content}\n[${attachmentName}]` : (content || attachmentName);
+  if (!textToCopy) return;
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(textToCopy);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = textToCopy;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+  } catch (err) {
+    console.error('Failed to copy message:', err);
+  }
+}
+
 function unpinSelectedMessage() {
   const message = messageMenu.value.message;
   closeMessageMenu();
@@ -392,11 +471,47 @@ function formatBubbleTime(value) {
 }
 
 const showScrollToBottom = ref(false);
+const loadingOlder = ref(false);
+
+async function triggerLoadOlder() {
+  if (loading.value || loadingOlder.value || showMessageSearch.value || !messages.value.length) return;
+  const container = messagesEl.value;
+  if (!container) return;
+
+  loadingOlder.value = true;
+  const oldScrollHeight = container.scrollHeight;
+  const oldScrollTop = container.scrollTop;
+
+  try {
+    const firstMessage = messages.value[0];
+    if (firstMessage) {
+      const loaded = await loadMessages(firstMessage.id, true);
+      if (loaded) {
+        await nextTick();
+        const newScrollHeight = container.scrollHeight;
+        container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+      }
+    }
+  } finally {
+    loadingOlder.value = false;
+  }
+}
 
 function handleScroll() {
   if (!messagesEl.value) return;
   const { scrollTop, scrollHeight, clientHeight } = messagesEl.value;
   showScrollToBottom.value = scrollHeight - scrollTop - clientHeight > 120;
+
+  if (scrollTop <= 50) {
+    void triggerLoadOlder();
+  }
+}
+
+function handleWheel(event) {
+  if (!messagesEl.value) return;
+  if (event.deltaY < 0 && messagesEl.value.scrollTop <= 50) {
+    void triggerLoadOlder();
+  }
 }
 
 function scrollToBottomSmooth() {
@@ -488,7 +603,7 @@ onBeforeUnmount(() => {
           >
             <Menu :size="22" aria-hidden="true" />
           </button>
-          <h1 class="brand-title">EdgeChat</h1>
+          <h1 class="brand-title">{{ siteName }}</h1>
           <div class="sidebar-header-actions">
             <button
               type="button"
@@ -540,6 +655,7 @@ onBeforeUnmount(() => {
             :src="activeRoomAvatar"
             :fallback="roomLabel(activeRoom)?.[0] || '?'"
             size="sm"
+            @click="previewAvatar(activeRoom)"
           />
           <div class="chat-header__identity">
             <h2>{{ roomLabel(activeRoom) }}</h2>
@@ -633,8 +749,8 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <section ref="messagesEl" class="chat-messages" @scroll="handleScroll">
-          <button v-if="messages.length && !showMessageSearch" type="button" class="load-more-btn" @click="loadOlder">{{ t('chat.loadEarlier') }}</button>
+        <section ref="messagesEl" class="chat-messages" @scroll="handleScroll" @wheel="handleWheel">
+          <button v-if="messages.length && !showMessageSearch" type="button" class="load-more-btn" @click="triggerLoadOlder">{{ t('chat.loadEarlier') }}</button>
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
           <div v-else-if="showMessageSearch && messageSearchQuery && !filteredMessages.length" class="messages-hint">{{ t('chat.noMatchingMessages') }}</div>
           <div v-else-if="!messages.length" class="messages-hint">{{ t('chat.noMessages') }}</div>
@@ -658,6 +774,7 @@ onBeforeUnmount(() => {
                 :alt="msg.sender.displayName"
                 :fallback="msg.sender.displayName"
                 size="sm"
+                @click="previewAvatar(msg.sender)"
               />
               <div
                 class="message-bubble"
@@ -708,6 +825,7 @@ onBeforeUnmount(() => {
           :pinned="selectedMessageIsPinned"
           :can-delete="canDeleteSelectedMessage"
           @close="closeMessageMenu"
+          @copy="copySelectedMessage"
           @pin="pinSelectedMessage"
           @unpin="unpinSelectedMessage"
           @delete="confirmDeleteMessage"
@@ -732,7 +850,7 @@ onBeforeUnmount(() => {
         <LanguageSwitch class="chat-empty__language-switch" />
         <div class="empty-content">
           <div class="empty-brand">
-            <span class="empty-title">EdgeChat</span>
+            <span class="empty-title">{{ siteName }}</span>
           </div>
         </div>
       </div>
@@ -753,6 +871,7 @@ onBeforeUnmount(() => {
           @invite="inviteMember"
           @remove-member="removeMember"
           @delete-group="deleteGroup"
+          @preview-avatar="previewAvatar"
         />
       </aside>
     </div>
@@ -770,6 +889,54 @@ onBeforeUnmount(() => {
       @notification="toggleNotifications"
       @logout="navigateFromMobileDrawer(logout)"
     />
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="avatarPreviewModal.open"
+          class="avatar-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          @click.self="closeAvatarPreviewModal"
+        >
+          <div class="avatar-modal-card">
+            <button
+              type="button"
+              class="avatar-modal-close"
+              :aria-label="t('common.close')"
+              @click="closeAvatarPreviewModal"
+            >
+              <X :size="20" aria-hidden="true" />
+            </button>
+            <div class="avatar-modal-header">
+              <h3>{{ avatarPreviewModal.name }}</h3>
+            </div>
+            <div class="avatar-modal-body">
+              <img
+                v-if="avatarPreviewModal.src"
+                :src="avatarPreviewModal.src"
+                :alt="avatarPreviewModal.name"
+                class="avatar-modal-img"
+              />
+              <div v-else class="avatar-modal-fallback">
+                <span>{{ avatarPreviewModal.fallback }}</span>
+              </div>
+            </div>
+            <div v-if="avatarPreviewModal.user" class="avatar-modal-footer">
+              <UiButton
+                variant="secondary"
+                size="sm"
+                class="avatar-dm-button"
+                @click="startDirectMessageFromAvatar"
+              >
+                <MessageSquare :size="16" aria-hidden="true" />
+                {{ t('chat.startDirectMessage') }}
+              </UiButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <AddConversationDialog
       :show="showAddConversation"
@@ -1645,5 +1812,112 @@ onBeforeUnmount(() => {
 .chat-search-bar__close:hover {
   background: rgba(0, 0, 0, 0.08);
   color: #111b21;
+}
+
+.avatar-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(11, 20, 26, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.avatar-modal-card {
+  position: relative;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  animation: modalScale 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.avatar-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #54656f;
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+
+.avatar-modal-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #111b21;
+}
+
+.avatar-modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111b21;
+  text-align: center;
+}
+
+.avatar-modal-body {
+  width: 240px;
+  height: 240px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+}
+
+.avatar-modal-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-modal-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #008069 0%, #10b981 100%);
+  color: #ffffff;
+  font-size: 64px;
+  font-weight: 700;
+}
+
+.avatar-modal-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.avatar-dm-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 </style>

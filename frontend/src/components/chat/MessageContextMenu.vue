@@ -1,5 +1,5 @@
 <script setup>
-import { Pin, PinOff, Trash2 } from '@lucide/vue';
+import { Copy, Pin, PinOff, Trash2 } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { t } from '../../i18n.js';
 
@@ -11,7 +11,7 @@ const props = defineProps({
   pinned: { type: Boolean, default: false },
   canDelete: { type: Boolean, default: true }
 });
-const emit = defineEmits(['close', 'pin', 'unpin', 'delete']);
+const emit = defineEmits(['close', 'copy', 'pin', 'unpin', 'delete']);
 
 const menuEl = ref(null);
 const menuStyle = computed(() => ({
@@ -74,6 +74,14 @@ onBeforeUnmount(() => {
         :aria-label="t('messages.actions')"
         @contextmenu.prevent
       >
+        <button
+          type="button"
+          role="menuitem"
+          @click="emit('copy')"
+        >
+          <Copy :size="18" :stroke-width="1.8" aria-hidden="true" />
+          {{ t('messages.copy') }}
+        </button>
         <button
           v-if="canPin"
           type="button"

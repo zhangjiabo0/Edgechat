@@ -37,7 +37,7 @@ defineProps({
   }
 });
 
-const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-member', 'delete-group']);
+const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-member', 'delete-group', 'preview-avatar']);
 </script>
 
 <template>
@@ -61,7 +61,7 @@ const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-memb
 
     <div class="member-chip-list">
       <div v-for="member in members" :key="member.id" class="member-chip">
-        <UiAvatar :src="member.avatarUrl" :fallback="member.displayName" size="sm" />
+        <UiAvatar :src="member.avatarUrl" :fallback="member.displayName" size="sm" @click="emit('preview-avatar', member)" />
         <div class="member-chip__text">
           <strong>{{ member.displayName }}</strong>
           <span>@{{ member.username }}</span>

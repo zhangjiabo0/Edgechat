@@ -30,8 +30,20 @@ function handleImageError() {
 </script>
 
 <template>
-  <div class="ui-avatar" :class="`ui-avatar--${size}`">
+  <div class="ui-avatar" :class="[`ui-avatar--${size}`, { 'ui-avatar--clickable': Boolean($attrs.onClick) }]">
     <img v-if="showImage" :src="src" :alt="alt" @error="handleImageError" />
     <span v-else>{{ initials }}</span>
   </div>
 </template>
+
+<style scoped>
+.ui-avatar--clickable {
+  cursor: pointer;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.ui-avatar--clickable:hover {
+  transform: scale(1.06);
+  opacity: 0.92;
+}
+</style>
