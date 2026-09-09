@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api.js';
@@ -26,6 +26,7 @@ const error = ref('');
 const savingProfile = ref(false);
 const savingPassword = ref(false);
 const uploadingAvatar = ref(false);
+const avatarUploadProgress = ref(0);
 const avatarInputEl = ref(null);
 
 const showCropper = ref(false);
@@ -199,11 +200,14 @@ function getCroppedBlob() {
 async function confirmCrop() {
   clearMessage();
   uploadingAvatar.value = true;
+  avatarUploadProgress.value = 0;
   showCropper.value = false;
   try {
     const blob = await getCroppedBlob();
     const file = new File([blob], 'avatar.png', { type: 'image/png' });
-    const upload = await api.uploadFile(file);
+    const upload = await api.uploadFile(file, (progress) => {
+      avatarUploadProgress.value = progress;
+    });
     const payload = await api.updateProfile({
       displayName: profileForm.displayName,
       avatarKey: upload.file.key
@@ -214,6 +218,7 @@ async function confirmCrop() {
     error.value = currentError.message;
   } finally {
     uploadingAvatar.value = false;
+    avatarUploadProgress.value = 0;
     cleanupCrop();
   }
 }
@@ -298,7 +303,7 @@ async function changePassword() {
               @change="onAvatarFileSelected"
             />
             <div class="avatar-actions">
-              <span class="avatar-hint">{{ uploadingAvatar ? t('common.processing') : t('settings.changeAvatarHint') }}</span>
+              <span class="avatar-hint">{{ uploadingAvatar ? `${t('common.uploading')} ${avatarUploadProgress}%` : t('settings.changeAvatarHint') }}</span>
               <button
                 v-if="session?.avatarUrl"
                 type="button"
@@ -970,6 +975,10 @@ async function changePassword() {
 
   .avatar-compact {
     width: 100%;
+  }
+
+  .field-compact input {
+    font-size: 16px;
   }
 }
 

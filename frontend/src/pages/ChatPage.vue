@@ -52,7 +52,8 @@ const filteredMessages = computed(() => {
   return messages.value.filter((msg) => {
     const content = (msg.content || '').toLowerCase();
     const sender = (msg.sender?.displayName || '').toLowerCase();
-    return content.includes(q) || sender.includes(q);
+    const attachmentName = (msg.attachment?.name || msg.attachment?.originalName || msg.attachment?.filename || '').toLowerCase();
+    return content.includes(q) || sender.includes(q) || attachmentName.includes(q);
   });
 });
 
@@ -137,7 +138,7 @@ function handleRoomAccessRevoked(room) {
 }
 
 const {
-  messages, pinnedMessage, highlightedMessageId, loading, wsStatus, composerText, pendingAttachment, sending,
+  messages, pinnedMessage, highlightedMessageId, loading, wsStatus, composerText, pendingAttachment, isUploadingAttachment, uploadProgress, sending,
   messagesEl, isOwnMessage,
   loadMessages, activateRoom, deactivateRoom, disconnectSocket, sendMessage, deleteMessage,
   pinMessage, unpinMessage, revealPinnedMessage,
@@ -715,6 +716,8 @@ onBeforeUnmount(() => {
 		<MessageComposer
 		  v-model="composerText"
 		  :pending-attachment="pendingAttachment"
+		  :is-uploading="isUploadingAttachment"
+		  :upload-progress="uploadProgress"
 		  :sending="sending"
 			  :disabled="!activeRoom"
 			  :error="error"
@@ -1552,6 +1555,11 @@ onBeforeUnmount(() => {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     box-shadow: -12px 0 30px rgba(11, 20, 26, 0.16);
+  }
+
+  .chat-search-bar__input {
+    font-size: 16px;
+    height: 36px;
   }
 }
 

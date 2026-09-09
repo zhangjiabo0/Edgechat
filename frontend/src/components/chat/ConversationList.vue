@@ -349,6 +349,10 @@ const filteredItems = computed(() => {
 	.sidebar-item + .sidebar-item {
 		border-top: 1px solid #f0f2f5;
 	}
+
+	.sidebar-search-input {
+		font-size: 16px;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

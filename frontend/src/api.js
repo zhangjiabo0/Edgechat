@@ -173,12 +173,75 @@ export default {
   listDms() {
     return request('/dm');
   },
-  uploadFile(file) {
-    const form = new FormData();
-    form.append('file', file);
-    return request('/upload', {
-      method: 'POST',
-      body: form
+  uploadFile(file, onProgress) {
+    if (isDemoMode) {
+      if (typeof onProgress === 'function') {
+        onProgress(50);
+        setTimeout(() => onProgress(100), 100);
+      }
+      const form = new FormData();
+      form.append('file', file);
+      return request('/upload', {
+        method: 'POST',
+        body: form
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_PREFIX}/upload`);
+      const token = getStoredToken();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      if (xhr.upload && typeof onProgress === 'function') {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
+            onProgress(percent);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        let payload;
+        const contentType = xhr.getResponseHeader('content-type') || '';
+        try {
+          payload = contentType.includes('application/json')
+            ? JSON.parse(xhr.responseText)
+            : xhr.responseText;
+        } catch {
+          payload = xhr.responseText;
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (typeof onProgress === 'function') {
+            onProgress(100);
+          }
+          resolve(payload);
+        } else {
+          const rawMessage = payload?.error?.message || payload?.error || payload || 'Upload failed';
+          const error = new Error(localizeErrorMessage(rawMessage));
+          error.status = xhr.status;
+          error.payload = payload;
+          error.rawMessage = rawMessage;
+
+          if (xhr.status === 401 && typeof window !== 'undefined') {
+            dispatchAuthInvalid(error.message);
+          }
+
+          reject(error);
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error during upload'));
+      };
+
+      const form = new FormData();
+      form.append('file', file);
+      xhr.send(form);
     });
   },
   getRoomWebSocketUrl(kind, roomId) {

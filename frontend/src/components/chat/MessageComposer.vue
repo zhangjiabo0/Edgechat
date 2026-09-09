@@ -19,6 +19,14 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	isUploading: {
+		type: Boolean,
+		default: false,
+	},
+	uploadProgress: {
+		type: Number,
+		default: 0,
+	},
 	disabled: {
 		type: Boolean,
 		default: false,
@@ -69,6 +77,7 @@ const sendDisabled = computed(
 	() =>
 		props.disabled ||
 		props.sending ||
+		props.isUploading ||
 		(!props.modelValue.trim() && !props.pendingAttachment),
 );
 
@@ -209,6 +218,21 @@ onBeforeUnmount(() => {
 
 <template>
 	<footer class="chat-composer">
+		<div v-if="isUploading" class="composer-upload-progress">
+			<div class="composer-upload-progress__info">
+				<span class="composer-upload-progress__label">
+					<svg class="animate-spin" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+						<circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="10"></circle>
+					</svg>
+					{{ t('common.uploading') }}
+				</span>
+				<span class="composer-upload-progress__value">{{ uploadProgress }}%</span>
+			</div>
+			<div class="composer-upload-progress__track">
+				<div class="composer-upload-progress__bar" :style="{ width: uploadProgress + '%' }"></div>
+			</div>
+		</div>
+
 		<div v-if="pendingAttachment" class="composer-attachment">
 			<PendingAttachmentPreview
 				:attachment="pendingAttachment"
@@ -276,7 +300,7 @@ onBeforeUnmount(() => {
 				<button
 					type="button"
 					class="composer-btn"
-					:disabled="disabled"
+					:disabled="disabled || isUploading"
 					:title="t('chat.addAttachment')"
 					:aria-label="t('chat.addAttachment')"
 					@click="openPicker"
@@ -286,7 +310,7 @@ onBeforeUnmount(() => {
 				<button
 					type="button"
 					class="composer-btn"
-					:disabled="disabled"
+					:disabled="disabled || isUploading"
 					title="录制语音消息"
 					aria-label="录制语音消息"
 					@click="startRecording"
@@ -532,6 +556,61 @@ onBeforeUnmount(() => {
 @keyframes blink {
 	0%, 100% { opacity: 1; }
 	50% { opacity: 0.3; }
+}
+
+.composer-upload-progress {
+	margin-bottom: 10px;
+	padding: 10px 14px;
+	border-radius: 12px;
+	background: #ffffff;
+	border: 1px solid #e9edef;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.composer-upload-progress__info {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 6px;
+	font-size: 13px;
+}
+
+.composer-upload-progress__label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #008069;
+	font-weight: 600;
+}
+
+.composer-upload-progress__value {
+	color: #008069;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.composer-upload-progress__track {
+	width: 100%;
+	height: 6px;
+	border-radius: 999px;
+	background: #e9edef;
+	overflow: hidden;
+}
+
+.composer-upload-progress__bar {
+	height: 100%;
+	border-radius: 999px;
+	background: linear-gradient(90deg, #008069, #10b981);
+	transition: width 200ms ease;
+}
+
+.animate-spin {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }
 
 @media (max-width: 960px) {

@@ -1546,4 +1546,9 @@
     min-height: 100vh;
   }
 
+  .field input,
+  .field textarea,
+  .field select {
+    font-size: 16px;
+  }
 }

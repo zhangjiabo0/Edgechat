@@ -352,19 +352,30 @@ export function useChatRoom({
 		}
 	}
 
+	const isUploadingAttachment = ref(false);
+	const uploadProgress = ref(0);
+
 	async function uploadAttachment(event) {
-		const file = event.target.files?.[0];
+		const file = event?.target?.files?.[0] || (event instanceof File ? event : null);
 		if (!file) {
 			return;
 		}
 
+		isUploadingAttachment.value = true;
+		uploadProgress.value = 0;
 		try {
-			const payload = await roomApi.uploadFile(file);
+			const payload = await roomApi.uploadFile(file, (progress) => {
+				uploadProgress.value = progress;
+			});
 			pendingAttachment.value = payload.file;
 		} catch (currentError) {
 			error.value = currentError.message;
 		} finally {
-			event.target.value = "";
+			if (event?.target) {
+				event.target.value = "";
+			}
+			isUploadingAttachment.value = false;
+			uploadProgress.value = 0;
 		}
 	}
 
@@ -403,6 +414,8 @@ export function useChatRoom({
 		wsStatus,
 		composerText,
 		pendingAttachment,
+		isUploadingAttachment,
+		uploadProgress,
 		sending,
 		messagesEl,
 		isOwnMessage,
