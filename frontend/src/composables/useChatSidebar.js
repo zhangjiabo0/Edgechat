@@ -134,6 +134,7 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 	}) {
 		const source = findConversationSource(kind, roomId);
 		if (!source) {
+			void refreshSidebar();
 			return;
 		}
 

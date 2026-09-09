@@ -309,17 +309,27 @@ async function changePassword() {
         <div class="settings-header__right">
           <LanguageSwitch />
           <div class="avatar-block">
-            <div class="avatar-trigger" :title="t('settings.changeAvatarTitle')">
+            <div class="avatar-container">
               <UiAvatar
                 :src="session?.avatarUrl"
                 :alt="t('settings.avatarAlt')"
                 :fallback="session?.displayName || session?.username || 'U'"
                 size="md"
-                style="cursor: pointer;"
+                class="avatar-preview-trigger"
+                :title="t('chat.avatarPreview')"
                 @click="previewAvatar(session)"
               />
-              <button type="button" class="avatar-overlay" :title="t('settings.changeAvatarTitle')" @click="openAvatarPicker">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><title>{{ t('settings.changeAvatar') }}</title><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <button
+                type="button"
+                class="avatar-edit-badge"
+                :title="t('settings.changeAvatarTitle')"
+                @click.stop="openAvatarPicker"
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
               </button>
             </div>
             <input
@@ -332,6 +342,13 @@ async function changePassword() {
             <div class="avatar-actions">
               <span class="avatar-hint">{{ uploadingAvatar ? `${t('common.uploading')} ${avatarUploadProgress}%` : t('settings.changeAvatarHint') }}</span>
               <div class="avatar-action-buttons">
+                <button
+                  type="button"
+                  class="avatar-action-btn"
+                  @click="previewAvatar(session)"
+                >
+                  {{ t('chat.avatarPreview') }}
+                </button>
                 <button
                   type="button"
                   class="avatar-action-btn"
@@ -575,42 +592,44 @@ async function changePassword() {
   flex-direction: row;
 }
 
-.avatar-trigger {
+.avatar-container {
   position: relative;
-  border: none;
-  background: none;
-  cursor: pointer;
-  padding: 0;
+  display: inline-flex;
   border-radius: 16px;
-  overflow: hidden;
-  transition: transform 0.2s ease;
 }
 
-.avatar-trigger:hover {
+.avatar-preview-trigger {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border-radius: 16px;
+}
+
+.avatar-preview-trigger:hover {
   transform: scale(1.05);
 }
 
-.avatar-overlay {
+.avatar-edit-badge {
   position: absolute;
-  inset: 0;
+  right: -4px;
+  bottom: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #008069;
+  color: #ffffff;
+  border: 2px solid #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(26, 35, 50, 0.45);
-  color: #fff;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  border-radius: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: background 0.2s ease, transform 0.2s ease;
+  z-index: 2;
 }
 
-.settings-header__right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar-trigger:hover .avatar-overlay {
-  opacity: 1;
+.avatar-edit-badge:hover {
+  background: #006a57;
+  transform: scale(1.15);
 }
 
 .avatar-input {
