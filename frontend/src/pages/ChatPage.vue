@@ -596,6 +596,14 @@ function scrollToBottomSmooth() {
   }
 }
 
+function handleEmojiPickerToggle(open) {
+  if (open) {
+    nextTick().then(() => {
+      scrollToBottomSmooth();
+    });
+  }
+}
+
 onBeforeUnmount(() => {
   cancelMessageLongPress();
   window.removeEventListener('focus', syncNotificationPermission);
@@ -915,6 +923,7 @@ onBeforeUnmount(() => {
 			  :disabled="!activeRoom"
 			  :error="error"
 			  :mention-candidates="mentionCandidates"
+			  @emoji-picker-toggle="handleEmojiPickerToggle"
 			  @send="sendComposerMessage"
 		  @upload="uploadAttachment"
 		  @clear-attachment="clearAttachment"

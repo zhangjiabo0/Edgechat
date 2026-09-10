@@ -332,8 +332,12 @@ async function collectMessageAttachmentsByColumn(db, columnName, ids) {
 }
 
 async function processR2CandidateKeys(env, db, keys, summary) {
+  if (!env.FILES) {
+    return;
+  }
   const unique = uniqueKeys(keys);
   for (const key of unique) {
+    if (!key) continue;
     if (await isR2KeyReferenced(db, key)) {
       summary.r2SkippedReferenced += 1;
       continue;
@@ -341,6 +345,9 @@ async function processR2CandidateKeys(env, db, keys, summary) {
 
     try {
       await env.FILES.delete(key);
+      if (typeof db?.prepare === 'function') {
+        await db.prepare(`DELETE FROM uploaded_files WHERE object_key = ?`).bind(key).run().catch(() => {});
+      }
       summary.r2Deleted += 1;
     } catch (error) {
       summary.r2DeleteFailed += 1;
@@ -386,7 +393,12 @@ async function runRetryQueueStep(env, config, summary) {
       }
 
       try {
-        await env.FILES.delete(key);
+        if (env.FILES) {
+          await env.FILES.delete(key);
+        }
+        if (typeof env.DB?.prepare === 'function') {
+          await env.DB.prepare(`DELETE FROM uploaded_files WHERE object_key = ?`).bind(key).run().catch(() => {});
+        }
         await removePendingR2Delete(env.DB, key);
         summary.retryQueueDeleted += 1;
         summary.r2Deleted += 1;

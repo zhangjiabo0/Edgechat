@@ -73,11 +73,16 @@ export function createMessageDeletion({
 		}
 
 		const attachmentKey = targetMessage?.attachment_key;
-		if (attachmentKey && env.FILES) {
-			try {
-				await env.FILES.delete(attachmentKey);
-			} catch (err) {
-				console.error(`物理删除 R2 文件 ${attachmentKey} 失败:`, err);
+		if (attachmentKey) {
+			if (env.FILES) {
+				try {
+					await env.FILES.delete(attachmentKey);
+				} catch (err) {
+					console.error(`物理删除 R2 文件 ${attachmentKey} 失败:`, err);
+				}
+			}
+			if (typeof env.DB?.prepare === "function") {
+				await env.DB.prepare(`DELETE FROM uploaded_files WHERE object_key = ?`).bind(attachmentKey).run().catch(() => {});
 			}
 		}
 

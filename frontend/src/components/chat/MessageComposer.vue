@@ -46,6 +46,7 @@ const emit = defineEmits([
 	"send",
 	"upload",
 	"clear-attachment",
+	"emoji-picker-toggle",
 ]);
 const fileInput = ref(null);
 const textarea = ref(null);
@@ -62,6 +63,19 @@ const EMOJI_LIST = [
 
 function toggleEmojiPicker() {
 	showEmojiPicker.value = !showEmojiPicker.value;
+	if (showEmojiPicker.value) {
+		textarea.value?.element?.blur();
+		emit("emoji-picker-toggle", true);
+	} else {
+		emit("emoji-picker-toggle", false);
+	}
+}
+
+function handleTextareaFocus() {
+	if (showEmojiPicker.value) {
+		showEmojiPicker.value = false;
+		emit("emoji-picker-toggle", false);
+	}
 }
 
 function insertEmoji(emoji) {
@@ -381,6 +395,7 @@ onBeforeUnmount(() => {
 					rows="1"
 					:disabled="disabled"
 					:placeholder="t('chat.messagePlaceholder')"
+					@focus="handleTextareaFocus"
 					@update:model-value="emit('update:modelValue', $event)"
 					@input="syncMentionQuery"
 					@keydown="handleKeydown"
