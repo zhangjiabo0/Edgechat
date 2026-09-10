@@ -266,6 +266,17 @@ CREATE TABLE IF NOT EXISTS telegram_mappings (
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL DEFAULT '',
+  auth TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 INSERT OR IGNORE INTO site_settings (setting_key, setting_value)
 VALUES ('site_name', 'Edgechat');
 
@@ -332,3 +343,7 @@ CREATE INDEX IF NOT EXISTS idx_message_events_channel_sequence
 
 CREATE INDEX IF NOT EXISTS idx_telegram_mappings_channel
   ON telegram_mappings(channel_id, enabled, id);
+
+CREATE INDEX IF NOT EXISTS idx_web_push_subscriptions_user
+  ON web_push_subscriptions(user_id, updated_at DESC);
+

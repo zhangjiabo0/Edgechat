@@ -209,7 +209,7 @@ function handleRoomAccessRevoked(room) {
 const {
   messages, pinnedMessage, highlightedMessageId, loading, hasMore, wsStatus, composerText, pendingAttachment, isUploadingAttachment, uploadProgress, sending,
   messagesEl, isOwnMessage,
-  loadMessages, activateRoom, deactivateRoom, disconnectSocket, sendMessage, deleteMessage,
+  loadMessages, syncLatestMessages, activateRoom, deactivateRoom, disconnectSocket, sendMessage, deleteMessage,
   pinMessage, unpinMessage, revealPinnedMessage,
   uploadAttachment, clearAttachment, loadOlder
 } = useChatRoom({
@@ -224,7 +224,10 @@ const { connectUnreadInbox, disconnectUnreadInbox } = useUnreadInbox({
   activeRoom,
   markConversationRead,
   applyConversationActivity,
-  notifyRoom
+  notifyRoom,
+  onReconnected: () => {
+    void refreshSidebar();
+  }
 });
 
 const wsConnected = computed(() => wsStatus.value === 'open');
@@ -496,9 +499,20 @@ async function copyTextSelectionModalText() {
 }
 
 
+function handleVisibilityOrFocusChange() {
+  syncNotificationPermission();
+  if (document.visibilityState === 'visible') {
+    void refreshSidebar();
+    if (activeRoom.value) {
+      void syncLatestMessages();
+    }
+  }
+}
+
 onMounted(() => {
   startViewportSync();
-  window.addEventListener('focus', syncNotificationPermission);
+  window.addEventListener('focus', handleVisibilityOrFocusChange);
+  document.addEventListener('visibilitychange', handleVisibilityOrFocusChange);
   void bootstrap().then(connectUnreadInbox);
 });
 
@@ -604,7 +618,8 @@ function handleEmojiPickerToggle(_open) {
 
 onBeforeUnmount(() => {
   cancelMessageLongPress();
-  window.removeEventListener('focus', syncNotificationPermission);
+  window.removeEventListener('focus', handleVisibilityOrFocusChange);
+  document.removeEventListener('visibilitychange', handleVisibilityOrFocusChange);
   disconnectUnreadInbox();
   disconnectSocket();
   stopViewportSync();

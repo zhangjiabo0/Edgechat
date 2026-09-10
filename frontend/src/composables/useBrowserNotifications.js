@@ -80,6 +80,25 @@ export function useBrowserNotifications(options = {}) {
 		() => !supported.value || permission.value === "denied",
 	);
 
+	async function registerServiceWorker() {
+		if (
+			typeof browserWindow !== "undefined" &&
+			browserWindow?.navigator &&
+			"serviceWorker" in browserWindow.navigator
+		) {
+			try {
+				return await browserWindow.navigator.serviceWorker.register("/sw.js");
+			} catch (err) {
+				console.warn("Service Worker registration failed:", err);
+			}
+		}
+		return null;
+	}
+
+	if (enabled.value) {
+		void registerServiceWorker();
+	}
+
 	async function toggleNotifications() {
 		syncPermission();
 		if (notificationToggleDisabled.value) {
@@ -96,6 +115,9 @@ export function useBrowserNotifications(options = {}) {
 			permission.value = await notificationApi.requestPermission();
 		}
 		enabled.value = permission.value === "granted";
+		if (enabled.value) {
+			void registerServiceWorker();
+		}
 		persistPreferences();
 		return notificationActionLabel.value;
 	}

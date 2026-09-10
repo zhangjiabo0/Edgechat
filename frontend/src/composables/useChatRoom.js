@@ -135,6 +135,38 @@ export function useChatRoom({
 		}
 	}
 
+	async function syncLatestMessages() {
+		const room = activeRoom.value;
+		const key = roomKey(room);
+		if (!key || loading.value) {
+			return false;
+		}
+
+		const generation = ++messageLoadGeneration;
+		try {
+			const payload = await roomApi.getMessages(room.kind, room.id, null);
+			if (generation !== messageLoadGeneration || roomKey() !== key) {
+				return false;
+			}
+			if (payload.messages && payload.messages.length > 0) {
+				const currentCount = messages.value.length;
+				const merged = mergeMessages(messages.value, payload.messages);
+				const hasNew = merged.length > currentCount;
+				messages.value = merged;
+				if (payload.pinnedMessage !== undefined) {
+					pinnedMessage.value = payload.pinnedMessage || null;
+				}
+				await nextTick();
+				if (hasNew) {
+					scrollToBottom();
+				}
+			}
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
 	const roomSession = createRealtimeSession({
 		openConnection(params, handlers) {
 			return openRoomConnection({
@@ -144,7 +176,11 @@ export function useChatRoom({
 			});
 		},
 		onStatus(event) {
+			const previousStatus = wsStatus.value;
 			wsStatus.value = event.status === "reconnecting" ? "connecting" : event.status;
+			if (event.status === "open" && previousStatus !== "open") {
+				void syncLatestMessages();
+			}
 		},
 		onClose: handleSocketClose,
 		onMessage(payload, connection) {
@@ -454,5 +490,6 @@ export function useChatRoom({
 		uploadAttachment,
 		clearAttachment,
 		loadOlder,
+		syncLatestMessages,
 	};
 }

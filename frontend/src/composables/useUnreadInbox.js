@@ -9,6 +9,7 @@ export function useUnreadInbox({
 	roomApi = api,
 	openInboxConnection = connectInboxSocket,
 	notifyRoom = () => {},
+	onReconnected = () => {},
 	isPageActive = () =>
 		globalThis.document?.visibilityState === "visible" &&
 		globalThis.document.hasFocus()
@@ -21,9 +22,17 @@ export function useUnreadInbox({
     );
   }
 
+		let inboxStatus = "closed";
 		const inboxSession = createRealtimeSession({
 			openConnection(_params, handlers) {
 				return openInboxConnection(handlers);
+			},
+			onStatus(event) {
+				const previousStatus = inboxStatus;
+				inboxStatus = event.status === "reconnecting" ? "connecting" : event.status;
+				if (event.status === "open" && previousStatus !== "open") {
+					onReconnected();
+				}
 			},
 			onMessage(payload) {
         if (payload.type !== 'room_message' || !payload.room) {

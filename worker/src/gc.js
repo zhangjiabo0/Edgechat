@@ -107,7 +107,8 @@ function createSummary() {
     r2Deleted: 0,
     r2DeleteFailed: 0,
     r2DeleteQueued: 0,
-    r2SkippedReferenced: 0
+    r2SkippedReferenced: 0,
+    uploadedFilesDeleted: 0
   };
 }
 
@@ -332,9 +333,6 @@ async function collectMessageAttachmentsByColumn(db, columnName, ids) {
 }
 
 async function processR2CandidateKeys(env, db, keys, summary) {
-  if (!env.FILES) {
-    return;
-  }
   const unique = uniqueKeys(keys);
   for (const key of unique) {
     if (!key) continue;
@@ -343,16 +341,56 @@ async function processR2CandidateKeys(env, db, keys, summary) {
       continue;
     }
 
-    try {
-      await env.FILES.delete(key);
-      if (typeof db?.prepare === 'function') {
-        await db.prepare(`DELETE FROM uploaded_files WHERE object_key = ?`).bind(key).run().catch(() => {});
+    if (env.FILES) {
+      try {
+        await env.FILES.delete(key);
+        summary.r2Deleted += 1;
+      } catch (error) {
+        summary.r2DeleteFailed += 1;
+        summary.r2DeleteQueued += 1;
+        await queueR2DeleteFailure(db, key, safeErrorMessage(error));
       }
-      summary.r2Deleted += 1;
-    } catch (error) {
-      summary.r2DeleteFailed += 1;
-      summary.r2DeleteQueued += 1;
-      await queueR2DeleteFailure(db, key, safeErrorMessage(error));
+    }
+
+    if (typeof db?.prepare === 'function') {
+      try {
+        const { meta } = await db.prepare(`DELETE FROM uploaded_files WHERE object_key = ?`).bind(key).run();
+        if (meta?.changes) {
+          summary.uploadedFilesDeleted = (summary.uploadedFilesDeleted || 0) + Number(meta.changes);
+        }
+      } catch {}
+    }
+  }
+}
+
+async function runOrphanedUploadedFilesStep(env, config, summary) {
+  let batches = 0;
+  while (batches < config.maxBatchesPerRun) {
+    const { results } = await env.DB.prepare(
+      `SELECT object_key
+       FROM uploaded_files
+       WHERE object_key NOT IN (
+         SELECT attachment_key FROM messages WHERE attachment_key IS NOT NULL AND attachment_key != ''
+         UNION ALL
+         SELECT avatar_key FROM users WHERE avatar_key IS NOT NULL AND avatar_key != ''
+         UNION ALL
+         SELECT avatar_key FROM channels WHERE avatar_key IS NOT NULL AND avatar_key != ''
+       )
+       LIMIT ?`
+    )
+      .bind(config.batchSize)
+      .all();
+
+    if (!results || !results.length) {
+      break;
+    }
+
+    batches += 1;
+    const keys = results.map((row) => row.object_key);
+    await processR2CandidateKeys(env, env.DB, keys, summary);
+
+    if (results.length < config.batchSize) {
+      break;
     }
   }
 }
@@ -670,6 +708,7 @@ export async function runScheduledGc(env) {
   await runHardDeleteInvitesStep(env, config, summary);
   await runHardDeleteChannelsStep(env, config, summary);
   await runHardDeleteUsersStep(env, config, summary);
+  await runOrphanedUploadedFilesStep(env, config, summary);
 
   console.log(JSON.stringify({
     type: 'scheduled_gc_summary',
