@@ -596,12 +596,10 @@ function scrollToBottomSmooth() {
   }
 }
 
-function handleEmojiPickerToggle(open) {
-  if (open) {
-    nextTick().then(() => {
-      scrollToBottomSmooth();
-    });
-  }
+function handleEmojiPickerToggle(_open) {
+  nextTick().then(() => {
+    scrollToBottomSmooth();
+  });
 }
 
 onBeforeUnmount(() => {

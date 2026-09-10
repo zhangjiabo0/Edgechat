@@ -42,7 +42,7 @@ function createEnvironment() {
         activeKeyId: 'test-v1',
         keys: { 'test-v1': encodedKey() }
       }),
-      MAX_FILE_SIZE: '20971520',
+      MAX_FILE_SIZE: '104857600',
       ALLOWED_FILE_TYPES: 'image/,video/,text/,application/pdf,application/octet-stream',
       FILES: {
         files,

@@ -49,7 +49,7 @@ const app = new Hono();
 
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname;
-  const uploadLimit = Number(c.env.MAX_FILE_SIZE || 20971520) + 1024 * 1024;
+  const uploadLimit = Number(c.env.MAX_FILE_SIZE || 104857600) + 1024 * 1024;
   const maxBytes = ['/api/upload', '/api/v1/uploads'].includes(path) ? uploadLimit : undefined;
   if (requestBodyTooLarge(c.req.raw, maxBytes)) {
     // 提前拒绝超大请求体，避免 Worker 在 JSON 解析前消耗过多内存。

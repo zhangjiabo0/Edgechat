@@ -86,7 +86,7 @@ export function registerV1Routes(app) {
       apiVersion: 1,
       site,
       limits: {
-        maxUploadBytes: Number(c.env.MAX_FILE_SIZE || 20971520),
+        maxUploadBytes: Number(c.env.MAX_FILE_SIZE || 104857600),
         messageRetentionDays: Number(c.env.MESSAGE_RETENTION_DAYS || 7)
       },
       features: {
@@ -264,7 +264,7 @@ export function registerV1Routes(app) {
     if (!c.env.FILES) {
       return v1ErrorResponse('attachments_unavailable', '当前部署没有绑定 R2，无法上传附件', 503);
     }
-    const maxFileSize = Number(c.env.MAX_FILE_SIZE || 20971520);
+    const maxFileSize = Number(c.env.MAX_FILE_SIZE || 104857600);
     if (requestBodyTooLarge(c.req.raw, maxFileSize + 1024 * 1024)) {
       return v1ErrorResponse(
         'payload_too_large',

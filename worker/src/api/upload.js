@@ -48,7 +48,7 @@ function contentDispositionValue(kind, filename) {
 }
 
 function validateUpload(env, file) {
-  const maxFileSize = Number(env.MAX_FILE_SIZE || 20971520);
+  const maxFileSize = Number(env.MAX_FILE_SIZE || 104857600);
   if (file.size > maxFileSize) {
     throw new Error(`文件大小不能超过 ${Math.round(maxFileSize / 1024 / 1024)}MB`);
   }
@@ -75,7 +75,7 @@ export function registerUploadRoutes(app) {
     }
 
     const session = c.get('session');
-    const maxFileSize = Number(c.env.MAX_FILE_SIZE || 20971520);
+    const maxFileSize = Number(c.env.MAX_FILE_SIZE || 104857600);
     if (requestBodyTooLarge(c.req.raw, maxFileSize + UPLOAD_BODY_OVERHEAD_BYTES)) {
       return errorResponse(`文件大小不能超过 ${Math.round(maxFileSize / 1024 / 1024)}MB`, 413);
     }

@@ -92,8 +92,14 @@ function insertEmoji(emoji) {
 	const nextCursor = cursor + emoji.length;
 	emit("update:modelValue", nextValue);
 	nextTick(() => {
-		textarea.value?.focus();
-		textarea.value?.element?.setSelectionRange(nextCursor, nextCursor);
+		if (!showEmojiPicker.value) {
+			textarea.value?.focus();
+			textarea.value?.element?.setSelectionRange(nextCursor, nextCursor);
+		} else if (input && typeof input.setSelectionRange === "function") {
+			try {
+				input.setSelectionRange(nextCursor, nextCursor);
+			} catch (_) {}
+		}
 	});
 }
 
@@ -307,19 +313,6 @@ onBeforeUnmount(() => {
 				</span>
 			</button>
 		</div>
-		<div v-if="showEmojiPicker" class="emoji-picker-menu" role="dialog" aria-label="Emoji 选择器">
-			<div class="emoji-picker-grid">
-				<button
-					v-for="emoji in EMOJI_LIST"
-					:key="emoji"
-					type="button"
-					class="emoji-item"
-					@click="insertEmoji(emoji)"
-				>
-					{{ emoji }}
-				</button>
-			</div>
-		</div>
 
 		<div class="composer-row">
 			<input
@@ -411,6 +404,21 @@ onBeforeUnmount(() => {
 					<ArrowRight :size="22" aria-hidden="true" />
 				</button>
 			</template>
+		</div>
+
+		<div v-if="showEmojiPicker" class="emoji-picker-menu" role="dialog" aria-label="Emoji 选择器">
+			<div class="emoji-picker-grid">
+				<button
+					v-for="emoji in EMOJI_LIST"
+					:key="emoji"
+					type="button"
+					class="emoji-item"
+					@mousedown.prevent
+					@click="insertEmoji(emoji)"
+				>
+					{{ emoji }}
+				</button>
+			</div>
 		</div>
 	</footer>
 </template>
@@ -740,9 +748,33 @@ onBeforeUnmount(() => {
 	}
 
 	.emoji-picker-menu {
-		left: max(8px, env(safe-area-inset-left));
-		width: calc(100vw - 32px);
-		max-width: 320px;
+		position: relative;
+		left: auto;
+		right: auto;
+		bottom: auto;
+		top: auto;
+		z-index: 1;
+		width: 100%;
+		max-width: 100%;
+		margin-top: 8px;
+		padding: 8px 4px 4px;
+		border: none;
+		border-top: 1px solid #e9edef;
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.emoji-picker-grid {
+		grid-template-columns: repeat(8, minmax(0, 1fr));
+		gap: 6px;
+		justify-items: center;
+	}
+
+	.emoji-item {
+		width: 38px;
+		height: 38px;
+		font-size: 22px;
 	}
 
 	.composer-row {
