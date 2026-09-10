@@ -270,6 +270,14 @@ async function markR2RetryFailure(db, key, retryCount, delayMinutes, errorMessag
     .run();
 }
 
+function chunkArray(array, chunkSize = 80) {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
 async function deleteRowsByIds(db, tableName, columnName, ids, extraSql = '') {
   assertAllowedIdentifier(tableName, columnName, DELETE_ALLOWED_IDENTIFIERS);
 
@@ -277,14 +285,19 @@ async function deleteRowsByIds(db, tableName, columnName, ids, extraSql = '') {
     return 0;
   }
 
-  const { meta } = await db
-    .prepare(
-      `DELETE FROM ${tableName}
-       WHERE ${columnName} IN (${placeholders(ids.length)})${extraSql}`
-    )
-    .bind(...ids)
-    .run();
-  return Number(meta?.changes || 0);
+  let totalChanges = 0;
+  const chunks = chunkArray(ids, 80);
+  for (const chunk of chunks) {
+    const { meta } = await db
+      .prepare(
+        `DELETE FROM ${tableName}
+         WHERE ${columnName} IN (${placeholders(chunk.length)})${extraSql}`
+      )
+      .bind(...chunk)
+      .run();
+    totalChanges += Number(meta?.changes || 0);
+  }
+  return totalChanges;
 }
 
 async function collectMessageAttachmentsByColumn(db, columnName, ids) {
@@ -297,18 +310,25 @@ async function collectMessageAttachmentsByColumn(db, columnName, ids) {
     return [];
   }
 
-  const { results } = await db
-    .prepare(
-      `SELECT attachment_key
-       FROM messages
-       WHERE ${columnName} IN (${placeholders(ids.length)})
-         AND attachment_key IS NOT NULL
-         AND attachment_key != ''`
-    )
-    .bind(...ids)
-    .all();
+  const allKeys = [];
+  const chunks = chunkArray(ids, 80);
+  for (const chunk of chunks) {
+    const { results } = await db
+      .prepare(
+        `SELECT attachment_key
+         FROM messages
+         WHERE ${columnName} IN (${placeholders(chunk.length)})
+           AND attachment_key IS NOT NULL
+           AND attachment_key != ''`
+      )
+      .bind(...chunk)
+      .all();
+    if (results && results.length) {
+      allKeys.push(...results.map((row) => row.attachment_key));
+    }
+  }
 
-  return uniqueKeys(results.map((row) => row.attachment_key));
+  return uniqueKeys(allKeys);
 }
 
 async function processR2CandidateKeys(env, db, keys, summary) {
@@ -537,29 +557,33 @@ async function runHardDeleteChannelsStep(env, config, summary) {
 }
 
 async function clearUserReferences(env, userIds) {
-  const binds = [...userIds];
-  await env.DB.batch([
-    env.DB.prepare(
-      `UPDATE channels
-       SET created_by = NULL
-       WHERE created_by IN (${placeholders(userIds.length)})`
-    ).bind(...binds),
-    env.DB.prepare(
-      `UPDATE registration_invites
-       SET created_by = NULL
-       WHERE created_by IN (${placeholders(userIds.length)})`
-    ).bind(...binds),
-    env.DB.prepare(
-      `UPDATE registration_invites
-       SET consumed_by_user_id = NULL
-       WHERE consumed_by_user_id IN (${placeholders(userIds.length)})`
-    ).bind(...binds),
-    env.DB.prepare(
-      `UPDATE channel_members
-       SET invited_by = NULL
-       WHERE invited_by IN (${placeholders(userIds.length)})`
-    ).bind(...binds)
-  ]);
+  if (!userIds.length) return;
+  const chunks = chunkArray(userIds, 80);
+  for (const chunk of chunks) {
+    const binds = [...chunk];
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE channels
+         SET created_by = NULL
+         WHERE created_by IN (${placeholders(chunk.length)})`
+      ).bind(...binds),
+      env.DB.prepare(
+        `UPDATE registration_invites
+         SET created_by = NULL
+         WHERE created_by IN (${placeholders(chunk.length)})`
+      ).bind(...binds),
+      env.DB.prepare(
+        `UPDATE registration_invites
+         SET consumed_by_user_id = NULL
+         WHERE consumed_by_user_id IN (${placeholders(chunk.length)})`
+      ).bind(...binds),
+      env.DB.prepare(
+        `UPDATE channel_members
+         SET invited_by = NULL
+         WHERE invited_by IN (${placeholders(chunk.length)})`
+      ).bind(...binds)
+    ]);
+  }
 }
 
 async function runHardDeleteUsersStep(env, config, summary) {

@@ -250,15 +250,20 @@ useOverlayLifecycle({
 
 @media (max-width: 480px) {
   .public-group-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    justify-content: center;
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
   }
 
   .public-group-dialog {
-    width: 100%;
-    max-height: calc(100dvh - env(safe-area-inset-top));
-    padding: 28px 20px max(20px, env(safe-area-inset-bottom));
-    border-radius: 16px 16px 0 0;
+    width: min(400px, calc(100vw - 32px));
+    max-height: calc(100dvh - 48px);
+    padding: 28px 20px 20px;
+    border-radius: 16px;
   }
 }
 

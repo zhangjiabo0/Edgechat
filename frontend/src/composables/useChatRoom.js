@@ -49,6 +49,11 @@ export function useChatRoom({
 		if (element) {
 			requestAnimationFrame(() => {
 				element.scrollTop = element.scrollHeight;
+				requestAnimationFrame(() => {
+					if (element) {
+						element.scrollTop = element.scrollHeight;
+					}
+				});
 			});
 		}
 	}
@@ -161,6 +166,13 @@ export function useChatRoom({
 				);
 				if (Number(pinnedMessage.value?.id) === messageId) {
 					pinnedMessage.value = null;
+				}
+				if (activeRoom.value) {
+					const lastMsg = messages.value.at(-1);
+					onRoomActivity({
+						room: activeRoom.value,
+						message: lastMsg || { createdAt: "", content: "", attachment: null, sender: null }
+					});
 				}
 			}
 			if (payload.type === "message_pinned" && payload.message) {

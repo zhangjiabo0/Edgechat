@@ -57,9 +57,10 @@ export function toggleLocale() {
 
 export function parseDate(value) {
   if (value instanceof Date) return value;
+  if (!value) return new Date(NaN);
   if (typeof value === 'string') {
     let str = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(str)) {
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/.test(str)) {
       str = str.replace(' ', 'T') + 'Z';
     }
     return new Date(str);
@@ -97,6 +98,7 @@ export function useI18n() {
     t,
     setLocale,
     toggleLocale,
+    parseDate,
     formatDate,
     formatDateTime,
     formatTime,

@@ -138,31 +138,25 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 			return;
 		}
 
-		if (lastMessageAt) {
-			const currentTime = source.lastMessageAt
-				? new Date(source.lastMessageAt).getTime()
-				: 0;
-			const nextTime = new Date(lastMessageAt).getTime();
-			if (!currentTime || nextTime >= currentTime) {
-				source.lastMessageAt = lastMessageAt;
-				if (lastMessageContent !== undefined) {
-					source.lastMessageContent = lastMessageContent;
-				}
-				if (lastMessageAttachmentType !== undefined) {
-					source.lastMessageAttachmentType = lastMessageAttachmentType;
-				}
-				if (lastMessageSenderName !== undefined) {
-					source.lastMessageSenderName = lastMessageSenderName;
-				}
+		if (lastMessageAt !== undefined) {
+			source.lastMessageAt = lastMessageAt;
+			if (lastMessageContent !== undefined) {
+				source.lastMessageContent = lastMessageContent;
+			}
+			if (lastMessageAttachmentType !== undefined) {
+				source.lastMessageAttachmentType = lastMessageAttachmentType;
+			}
+			if (lastMessageSenderName !== undefined) {
+				source.lastMessageSenderName = lastMessageSenderName;
 			}
 		}
 
-			if (unreadCount !== undefined) {
-				source.unreadCount = Math.max(0, Number(unreadCount || 0));
-			}
-			if (mentionUnreadCount !== undefined) {
-				source.mentionUnreadCount = Math.max(0, Number(mentionUnreadCount || 0));
-			}
+		if (unreadCount !== undefined) {
+			source.unreadCount = Math.max(0, Number(unreadCount || 0));
+		}
+		if (mentionUnreadCount !== undefined) {
+			source.mentionUnreadCount = Math.max(0, Number(mentionUnreadCount || 0));
+		}
 	}
 
 	async function refreshSidebar() {

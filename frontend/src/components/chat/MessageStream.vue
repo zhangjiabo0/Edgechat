@@ -5,7 +5,7 @@ import SenderSourceBadge from './SenderSourceBadge.vue';
 import UiAvatar from '../ui/Avatar.vue';
 import UiButton from '../ui/Button.vue';
 import UiSurface from '../ui/Surface.vue';
-import { formatDate, formatTime, t } from '../../i18n.js';
+import { formatDate, formatTime, parseDate, t } from '../../i18n.js';
 
 const props = defineProps({
   messages: {
@@ -39,8 +39,8 @@ const scrollContainer = ref(null);
 
 function isSameDay(leftVal, rightVal) {
   if (!leftVal || !rightVal) return false;
-  const d1 = new Date(leftVal);
-  const d2 = new Date(rightVal);
+  const d1 = parseDate(leftVal);
+  const d2 = parseDate(rightVal);
   if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false;
   return (
     d1.getFullYear() === d2.getFullYear() &&

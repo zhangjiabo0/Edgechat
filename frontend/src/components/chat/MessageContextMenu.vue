@@ -1,5 +1,5 @@
 <script setup>
-import { Copy, Pin, PinOff, Trash2 } from '@lucide/vue';
+import { Copy, FileText, Pin, PinOff, Trash2 } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { t } from '../../i18n.js';
 
@@ -11,12 +11,12 @@ const props = defineProps({
   pinned: { type: Boolean, default: false },
   canDelete: { type: Boolean, default: true }
 });
-const emit = defineEmits(['close', 'copy', 'pin', 'unpin', 'delete']);
+const emit = defineEmits(['close', 'copy', 'select-text', 'pin', 'unpin', 'delete']);
 
 const menuEl = ref(null);
 const menuStyle = computed(() => ({
   left: `${Math.max(8, Math.min(props.x, window.innerWidth - 184))}px`,
-  top: `${Math.max(8, Math.min(props.y, window.innerHeight - (props.canPin ? 108 : 60)))}px`
+  top: `${Math.max(8, Math.min(props.y, window.innerHeight - (props.canPin ? 148 : 100)))}px`
 }));
 
 function handleWindowPointerDown(event) {
@@ -81,6 +81,14 @@ onBeforeUnmount(() => {
         >
           <Copy :size="18" :stroke-width="1.8" aria-hidden="true" />
           {{ t('messages.copy') }}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="emit('select-text')"
+        >
+          <FileText :size="18" :stroke-width="1.8" aria-hidden="true" />
+          {{ t('messages.selectText') }}
         </button>
         <button
           v-if="canPin"

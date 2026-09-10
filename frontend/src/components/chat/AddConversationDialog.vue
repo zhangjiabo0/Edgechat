@@ -363,14 +363,19 @@ watch(
 
 @media (max-width: 480px) {
   .add-conversation-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    justify-content: center;
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
   }
 
   .add-conversation-dialog {
-    width: 100%;
-    max-height: calc(100dvh - env(safe-area-inset-top));
-    border-radius: 16px 16px 0 0;
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100dvh - 48px);
+    border-radius: 16px;
   }
 
   .add-conversation-dialog__header,

@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowRight, Mic, Paperclip, Square, Trash2 } from "@lucide/vue";
+import { ArrowRight, Mic, Paperclip, Smile, Square, Trash2 } from "@lucide/vue";
 import { computed, nextTick, ref, onBeforeUnmount } from "vue";
 import { t } from "../../i18n.js";
 import UiTextarea from "../ui/Textarea.vue";
@@ -52,6 +52,36 @@ const textarea = ref(null);
 const mentionStart = ref(-1);
 const mentionQuery = ref("");
 const activeMentionIndex = ref(0);
+
+const showEmojiPicker = ref(false);
+const EMOJI_LIST = [
+	"😊", "😂", "😍", "🎉", "👍", "❤️", "🔥", "🤣", "😎", "😭",
+	"🙏", "😮", "👏", "🤔", "🚀", "💯", "✨", "🥳", "🙌", "💩",
+	"🤝", "🙈", "💪", "👀", "😅", "🤮", "🙄", "🤩", "🎂", "🍻", "⚡", "🎈"
+];
+
+function toggleEmojiPicker() {
+	showEmojiPicker.value = !showEmojiPicker.value;
+}
+
+function insertEmoji(emoji) {
+	const input = textarea.value?.element;
+	if (!input) {
+		emit("update:modelValue", props.modelValue + emoji);
+		return;
+	}
+	const cursor = input.selectionStart ?? props.modelValue.length;
+	const nextValue =
+		props.modelValue.slice(0, cursor) +
+		emoji +
+		props.modelValue.slice(cursor);
+	const nextCursor = cursor + emoji.length;
+	emit("update:modelValue", nextValue);
+	nextTick(() => {
+		textarea.value?.focus();
+		textarea.value?.element?.setSelectionRange(nextCursor, nextCursor);
+	});
+}
 
 const isRecording = ref(false);
 const recordingDuration = ref(0);
@@ -263,6 +293,20 @@ onBeforeUnmount(() => {
 				</span>
 			</button>
 		</div>
+		<div v-if="showEmojiPicker" class="emoji-picker-menu" role="dialog" aria-label="Emoji 选择器">
+			<div class="emoji-picker-grid">
+				<button
+					v-for="emoji in EMOJI_LIST"
+					:key="emoji"
+					type="button"
+					class="emoji-item"
+					@click="insertEmoji(emoji)"
+				>
+					{{ emoji }}
+				</button>
+			</div>
+		</div>
+
 		<div class="composer-row">
 			<input
 				ref="fileInput"
@@ -297,6 +341,17 @@ onBeforeUnmount(() => {
 			</template>
 
 			<template v-else>
+				<button
+					type="button"
+					class="composer-btn"
+					:class="{ 'composer-btn--active': showEmojiPicker }"
+					:disabled="disabled || isUploading"
+					title="表情包"
+					aria-label="表情包"
+					@click="toggleEmojiPicker"
+				>
+					<Smile :size="20" aria-hidden="true" />
+				</button>
 				<button
 					type="button"
 					class="composer-btn"
@@ -613,6 +668,50 @@ onBeforeUnmount(() => {
 	to { transform: rotate(360deg); }
 }
 
+.emoji-picker-menu {
+	position: absolute;
+	left: 16px;
+	bottom: calc(100% - 2px);
+	z-index: 5;
+	width: 290px;
+	padding: 10px;
+	border: 1px solid #dfe5e2;
+	border-radius: 12px;
+	background: #ffffff;
+	box-shadow: 0 10px 28px rgba(17, 27, 33, 0.14);
+}
+
+.emoji-picker-grid {
+	display: grid;
+	grid-template-columns: repeat(8, minmax(0, 1fr));
+	gap: 4px;
+}
+
+.emoji-item {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	font-size: 18px;
+	cursor: pointer;
+	transition: background 150ms, transform 150ms;
+}
+
+.emoji-item:hover {
+	background: #edf8f2;
+	transform: scale(1.2);
+}
+
+.composer-btn--active {
+	color: #008069;
+	background: rgba(0, 128, 105, 0.1);
+}
+
 @media (max-width: 960px) {
 	.chat-composer {
 		padding: 8px max(8px, env(safe-area-inset-right))
@@ -623,6 +722,12 @@ onBeforeUnmount(() => {
 	.mention-menu {
 		right: max(56px, env(safe-area-inset-right));
 		left: max(56px, env(safe-area-inset-left));
+	}
+
+	.emoji-picker-menu {
+		left: max(8px, env(safe-area-inset-left));
+		width: calc(100vw - 32px);
+		max-width: 320px;
 	}
 
 	.composer-row {

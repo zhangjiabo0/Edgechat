@@ -181,6 +181,7 @@ export default {
   'messages.you': '我',
   'messages.actions': '消息操作',
   'messages.copy': '复制消息',
+  'messages.selectText': '选择文本',
   'messages.pin': '置顶消息',
   'messages.unpin': '取消置顶',
   'messages.pinned': '置顶消息',

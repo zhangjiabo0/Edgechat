@@ -181,6 +181,7 @@ export default {
   'messages.you': 'You',
   'messages.actions': 'Message actions',
   'messages.copy': 'Copy message',
+  'messages.selectText': 'Select text',
   'messages.pin': 'Pin message',
   'messages.unpin': 'Unpin message',
   'messages.pinned': 'Pinned message',

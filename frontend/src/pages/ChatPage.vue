@@ -36,7 +36,7 @@ import store from '../store.js';
 import { useI18n } from '../i18n.js';
 
 const router = useRouter();
-const { formatDate: formatLocaleDate, formatTime: formatLocaleTime, t } = useI18n();
+const { formatDate: formatLocaleDate, formatTime: formatLocaleTime, parseDate, t } = useI18n();
 const error = ref('');
 const activeRoom = ref(null);
 const showMobileNavigation = ref(false);
@@ -459,6 +459,43 @@ function unpinSelectedMessage() {
   if (message) unpinMessage(message.id);
 }
 
+const textSelectionModal = reactive({
+  open: false,
+  text: ''
+});
+
+function openSelectTextModal() {
+  const message = messageMenu.value.message;
+  closeMessageMenu();
+  if (!message) return;
+
+  const content = message.content || '';
+  const attachmentName = message.attachment?.name || '';
+  const text = content && attachmentName ? `${content}\n[${attachmentName}]` : (content || attachmentName);
+  if (!text) return;
+
+  textSelectionModal.text = text;
+  textSelectionModal.open = true;
+}
+
+function closeSelectTextModal() {
+  textSelectionModal.open = false;
+  textSelectionModal.text = '';
+}
+
+async function copyTextSelectionModalText() {
+  const textToCopy = textSelectionModal.text;
+  if (!textToCopy) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(textToCopy);
+    }
+  } catch (err) {
+    console.error('Failed to copy text:', err);
+  }
+}
+
+
 onMounted(() => {
   startViewportSync();
   window.addEventListener('focus', syncNotificationPermission);
@@ -467,8 +504,8 @@ onMounted(() => {
 
 function isSameDay(leftVal, rightVal) {
   if (!leftVal || !rightVal) return false;
-  const d1 = new Date(leftVal);
-  const d2 = new Date(rightVal);
+  const d1 = parseDate(leftVal);
+  const d2 = parseDate(rightVal);
   if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false;
   return (
     d1.getFullYear() === d2.getFullYear() &&
@@ -490,6 +527,7 @@ function formatBubbleTime(value) {
 
 const showScrollToBottom = ref(false);
 const loadingOlder = ref(false);
+const recentlyLoadedIds = ref(new Set());
 
 let lastScrollTop = 0;
 
@@ -501,6 +539,7 @@ async function triggerLoadOlder() {
   loadingOlder.value = true;
   const oldScrollHeight = container.scrollHeight;
   const oldScrollTop = container.scrollTop;
+  const existingIds = new Set(messages.value.map((m) => m.id));
 
   try {
     const firstMessage = messages.value[0];
@@ -510,6 +549,17 @@ async function triggerLoadOlder() {
         await nextTick();
         const newScrollHeight = container.scrollHeight;
         container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+
+        const newIds = new Set();
+        for (const msg of messages.value) {
+          if (!existingIds.has(msg.id)) {
+            newIds.add(msg.id);
+          }
+        }
+        recentlyLoadedIds.value = newIds;
+        setTimeout(() => {
+          recentlyLoadedIds.value = new Set();
+        }, 600);
       }
     }
   } finally {
@@ -787,7 +837,8 @@ onBeforeUnmount(() => {
               class="message-row"
               :class="{
                 'message-row--own': isOwnMessage(msg),
-                'message-row--moderatable': canModerateMessages
+                'message-row--moderatable': canModerateMessages,
+                'message-row--new-loaded': recentlyLoadedIds.has(msg.id)
               }"
             >
               <UiAvatar
@@ -849,6 +900,7 @@ onBeforeUnmount(() => {
           :can-delete="canDeleteSelectedMessage"
           @close="closeMessageMenu"
           @copy="copySelectedMessage"
+          @select-text="openSelectTextModal"
           @pin="pinSelectedMessage"
           @unpin="unpinSelectedMessage"
           @delete="confirmDeleteMessage"
@@ -954,6 +1006,50 @@ onBeforeUnmount(() => {
               >
                 <MessageSquare :size="16" aria-hidden="true" />
                 {{ t('chat.startDirectMessage') }}
+              </UiButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="textSelectionModal.open"
+          class="avatar-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          @click.self="closeSelectTextModal"
+        >
+          <div class="avatar-modal-card text-selection-card">
+            <button
+              type="button"
+              class="avatar-modal-close"
+              :aria-label="t('common.close')"
+              @click="closeSelectTextModal"
+            >
+              <X :size="20" aria-hidden="true" />
+            </button>
+            <div class="avatar-modal-header">
+              <h3>{{ t('messages.selectText') }}</h3>
+            </div>
+            <div class="text-selection-body">
+              <textarea
+                readonly
+                class="text-selection-area"
+                :value="textSelectionModal.text"
+                @focus="$event.target.select()"
+              ></textarea>
+            </div>
+            <div class="avatar-modal-footer">
+              <UiButton
+                variant="primary"
+                size="sm"
+                class="avatar-dm-button"
+                @click="copyTextSelectionModalText"
+              >
+                {{ t('messages.copy') }}
               </UiButton>
             </div>
           </div>
@@ -1473,6 +1569,9 @@ onBeforeUnmount(() => {
   position: relative;
   word-break: break-word;
   box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .message-row--moderatable .message-bubble {
@@ -1719,8 +1818,29 @@ onBeforeUnmount(() => {
     scrollbar-gutter: auto;
   }
 
+  .scroll-to-bottom-btn {
+    right: 16px;
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    z-index: 10;
+  }
+
   .message-row {
     margin-bottom: 8px;
+  }
+
+  .message-row--new-loaded {
+    animation: loadOlderFadeIn 300ms ease-out forwards;
+  }
+
+  @keyframes loadOlderFadeIn {
+    from {
+      opacity: 0.15;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .message-bubble {
@@ -1942,5 +2062,29 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.text-selection-card {
+  width: min(440px, 92vw);
+}
+
+.text-selection-body {
+  width: 100%;
+}
+
+.text-selection-area {
+  width: 100%;
+  min-height: 140px;
+  max-height: 280px;
+  padding: 12px;
+  border: 1px solid #e8ecf0;
+  border-radius: 12px;
+  background: #f9fafb;
+  color: #111b21;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  user-select: text;
+  -webkit-user-select: text;
 }
 </style>

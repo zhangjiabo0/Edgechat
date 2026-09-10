@@ -139,15 +139,20 @@ useOverlayLifecycle({
 
 @media (max-width: 480px) {
   .room-dialog-overlay {
-    align-items: flex-end;
-    padding: env(safe-area-inset-top) 0 0;
+    align-items: center;
+    justify-content: center;
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
   }
 
   .room-dialog {
-    width: 100%;
-    max-height: calc(100dvh - env(safe-area-inset-top));
-    padding: 20px 16px max(16px, env(safe-area-inset-bottom));
-    border-radius: 16px 16px 0 0;
+    width: min(420px, calc(100vw - 32px));
+    max-height: calc(100dvh - 48px);
+    padding: 20px 16px;
+    border-radius: 16px;
   }
 
   .room-dialog__actions {
