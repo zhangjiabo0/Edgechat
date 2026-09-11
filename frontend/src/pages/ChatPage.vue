@@ -1,6 +1,6 @@
 <script setup>
 import { ArrowLeft, Bell, BellOff, ChevronDown, Loader2, Menu, MessageSquare, Search, Settings, UsersRound, X } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onBeforeUpdate, onMounted, onUpdated, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDemoMode } from '../runtime.js';
 import api from '../api.js';
@@ -561,6 +561,32 @@ const loadingOlder = ref(false);
 const recentlyLoadedIds = ref(new Set());
 
 let lastScrollTop = 0;
+let anchorElement = null;
+let anchorPrevTop = 0;
+
+onBeforeUpdate(() => {
+  if (loadingOlder.value && messagesEl.value && messages.value.length) {
+    const firstMsg = messages.value[0];
+    if (firstMsg) {
+      anchorElement = messagesEl.value.querySelector(`[data-message-id="${firstMsg.id}"]`);
+      if (anchorElement) {
+        anchorPrevTop = anchorElement.getBoundingClientRect().top;
+      }
+    }
+  }
+});
+
+onUpdated(() => {
+  if (loadingOlder.value && anchorElement && messagesEl.value) {
+    const newTop = anchorElement.getBoundingClientRect().top;
+    const diff = newTop - anchorPrevTop;
+    if (diff !== 0) {
+      messagesEl.value.scrollTop += diff;
+    }
+    anchorElement = null;
+    anchorPrevTop = 0;
+  }
+});
 
 async function triggerLoadOlder() {
   if (!hasMore.value || loading.value || loadingOlder.value || showMessageSearch.value || !messages.value.length) return;
@@ -575,23 +601,9 @@ async function triggerLoadOlder() {
     return;
   }
 
-  const prevFirstEl = container.querySelector(`[data-message-id="${firstMessage.id}"]`);
-  const prevTop = prevFirstEl ? prevFirstEl.getBoundingClientRect().top : 0;
-  const oldScrollHeight = container.scrollHeight;
-  const oldScrollTop = container.scrollTop;
-
   try {
     const loaded = await loadMessages(firstMessage.id, true);
     if (loaded) {
-      await nextTick();
-      if (prevFirstEl) {
-        const newTop = prevFirstEl.getBoundingClientRect().top;
-        container.scrollTop += (newTop - prevTop);
-      } else {
-        const newScrollHeight = container.scrollHeight;
-        container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
-      }
-
       const newIds = new Set();
       for (const msg of messages.value) {
         if (!existingIds.has(msg.id)) {
@@ -886,15 +898,17 @@ onBeforeUnmount(() => {
         </div>
 
         <section ref="messagesEl" class="chat-messages" @scroll="handleScroll" @wheel="handleWheel" @click="handleChatAreaClick">
+          <div v-if="loadingOlder" class="loading-older-indicator">
+            <Loader2 :size="15" class="load-more-spinner" aria-hidden="true" />
+            <span>{{ t('chat.loadingMessages') }}</span>
+          </div>
           <button
-            v-if="hasMore && messages.length && !showMessageSearch"
+            v-else-if="hasMore && messages.length && !showMessageSearch"
             type="button"
             class="load-more-btn"
-            :disabled="loadingOlder"
             @click="triggerLoadOlder"
           >
-            <Loader2 v-if="loadingOlder" :size="14" class="load-more-spinner animate-spin" aria-hidden="true" />
-            <span>{{ loadingOlder ? t('chat.loadingMessages') : t('chat.loadEarlier') }}</span>
+            <span>{{ t('chat.loadEarlier') }}</span>
           </button>
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
           <div v-else-if="showMessageSearch && messageSearchQuery && !filteredMessages.length" class="messages-hint">{{ t('chat.noMatchingMessages') }}</div>
@@ -1561,7 +1575,8 @@ onBeforeUnmount(() => {
   transform: translateY(0);
 }
 
-.load-more-btn {
+.load-more-btn,
+.loading-older-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1574,18 +1589,23 @@ onBeforeUnmount(() => {
   background: #fff;
   color: #54656f;
   font-size: 12px;
-  cursor: pointer;
   transition: background 150ms, border-color 150ms, opacity 150ms;
 }
 
-.load-more-btn:hover:not(:disabled) {
+.load-more-btn {
+  cursor: pointer;
+}
+
+.load-more-btn:hover {
   background: #f5f7fa;
   border-color: #d1d5db;
 }
 
-.load-more-btn:disabled {
+.loading-older-indicator {
   cursor: default;
-  opacity: 0.75;
+  color: #008069;
+  border-color: rgba(0, 128, 105, 0.2);
+  background: rgba(0, 128, 105, 0.05);
 }
 
 .load-more-spinner {

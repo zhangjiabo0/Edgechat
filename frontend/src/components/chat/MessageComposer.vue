@@ -73,21 +73,20 @@ function toggleEmojiPicker() {
 
 function handleTextareaFocus() {
 	if (showEmojiPicker.value) {
-		showEmojiPicker.value = false;
-		emit("emoji-picker-toggle", false);
-		nextTick(() => {
-			textarea.value?.focus();
-		});
+		setTimeout(() => {
+			showEmojiPicker.value = false;
+			emit("emoji-picker-toggle", false);
+		}, 60);
 	}
 }
 
 function handleTextareaClick() {
 	if (showEmojiPicker.value) {
-		showEmojiPicker.value = false;
-		emit("emoji-picker-toggle", false);
-		nextTick(() => {
-			textarea.value?.focus();
-		});
+		textarea.value?.focus();
+		setTimeout(() => {
+			showEmojiPicker.value = false;
+			emit("emoji-picker-toggle", false);
+		}, 60);
 	}
 }
 
