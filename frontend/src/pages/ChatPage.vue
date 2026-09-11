@@ -568,30 +568,40 @@ async function triggerLoadOlder() {
   if (!container) return;
 
   loadingOlder.value = true;
+  const existingIds = new Set(messages.value.map((m) => m.id));
+  const firstMessage = messages.value[0];
+  if (!firstMessage) {
+    loadingOlder.value = false;
+    return;
+  }
+
+  const prevFirstEl = container.querySelector(`[data-message-id="${firstMessage.id}"]`);
+  const prevTop = prevFirstEl ? prevFirstEl.getBoundingClientRect().top : 0;
   const oldScrollHeight = container.scrollHeight;
   const oldScrollTop = container.scrollTop;
-  const existingIds = new Set(messages.value.map((m) => m.id));
 
   try {
-    const firstMessage = messages.value[0];
-    if (firstMessage) {
-      const loaded = await loadMessages(firstMessage.id, true);
-      if (loaded) {
-        await nextTick();
+    const loaded = await loadMessages(firstMessage.id, true);
+    if (loaded) {
+      await nextTick();
+      if (prevFirstEl) {
+        const newTop = prevFirstEl.getBoundingClientRect().top;
+        container.scrollTop += (newTop - prevTop);
+      } else {
         const newScrollHeight = container.scrollHeight;
         container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
-
-        const newIds = new Set();
-        for (const msg of messages.value) {
-          if (!existingIds.has(msg.id)) {
-            newIds.add(msg.id);
-          }
-        }
-        recentlyLoadedIds.value = newIds;
-        setTimeout(() => {
-          recentlyLoadedIds.value = new Set();
-        }, 600);
       }
+
+      const newIds = new Set();
+      for (const msg of messages.value) {
+        if (!existingIds.has(msg.id)) {
+          newIds.add(msg.id);
+        }
+      }
+      recentlyLoadedIds.value = newIds;
+      setTimeout(() => {
+        recentlyLoadedIds.value = new Set();
+      }, 600);
     }
   } finally {
     loadingOlder.value = false;
@@ -1552,10 +1562,11 @@ onBeforeUnmount(() => {
 }
 
 .load-more-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  width: fit-content;
   margin: 0 auto 16px;
   padding: 6px 16px;
   border: 1px solid #e8ecf0;
@@ -1584,6 +1595,21 @@ onBeforeUnmount(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.message-row--new-loaded {
+  animation: fadeInSmooth 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInSmooth {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .messages-hint {

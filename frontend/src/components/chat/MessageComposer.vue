@@ -75,6 +75,19 @@ function handleTextareaFocus() {
 	if (showEmojiPicker.value) {
 		showEmojiPicker.value = false;
 		emit("emoji-picker-toggle", false);
+		nextTick(() => {
+			textarea.value?.focus();
+		});
+	}
+}
+
+function handleTextareaClick() {
+	if (showEmojiPicker.value) {
+		showEmojiPicker.value = false;
+		emit("emoji-picker-toggle", false);
+		nextTick(() => {
+			textarea.value?.focus();
+		});
 	}
 }
 
@@ -405,6 +418,7 @@ onBeforeUnmount(() => {
 					:disabled="disabled"
 					:placeholder="t('chat.messagePlaceholder')"
 					@focus="handleTextareaFocus"
+					@click="handleTextareaClick"
 					@update:model-value="emit('update:modelValue', $event)"
 					@input="syncMentionQuery"
 					@keydown="handleKeydown"
