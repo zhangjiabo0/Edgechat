@@ -64,18 +64,19 @@ const filteredItems = computed(() => {
 		</div>
 
 		<div class="sidebar-list">
-			<div v-if="loading" class="sidebar-hint">
+			<div v-if="loading && !items.length" class="sidebar-hint">
 				{{ t("chat.loadingConversations") }}
 			</div>
-			<div v-else-if="!items.length" class="sidebar-hint">
-				{{ t("chat.noConversations") }}
-			</div>
-			<div v-else-if="!filteredItems.length" class="sidebar-hint">
-				{{ t("chat.noMatchingConversations") }}
-			</div>
-			<button
-				v-for="item in filteredItems"
-				:key="item.key"
+			<template v-else>
+				<div v-if="!items.length" class="sidebar-hint">
+					{{ t("chat.noConversations") }}
+				</div>
+				<div v-else-if="!filteredItems.length" class="sidebar-hint">
+					{{ t("chat.noMatchingConversations") }}
+				</div>
+				<button
+					v-for="item in filteredItems"
+					:key="item.key"
 				type="button"
 				class="sidebar-item"
 				:class="{ 'sidebar-item--active': activeKey === item.key }"
@@ -111,6 +112,7 @@ const filteredItems = computed(() => {
 					</div>
 				</div>
 			</button>
+			</template>
 		</div>
 	</div>
 </template>

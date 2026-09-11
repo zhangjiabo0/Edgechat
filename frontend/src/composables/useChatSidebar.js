@@ -160,7 +160,9 @@ export function useChatSidebar({ applyActiveChannel, selectDm, sidebarApi = api 
 	}
 
 	async function refreshSidebar() {
-		sidebarLoading.value = true;
+		if (!channels.value.length && !dms.value.length) {
+			sidebarLoading.value = true;
+		}
 		try {
 			const payload = await sidebarApi.bootstrap();
 			channels.value = payload.channels || [];

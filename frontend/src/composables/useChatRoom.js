@@ -234,7 +234,9 @@ export function useChatRoom({
 		}
 
 		const generation = ++messageLoadGeneration;
-		loading.value = true;
+		if (!append) {
+			loading.value = true;
+		}
 		error.value = "";
 		try {
 			const payload = await roomApi.getMessages(room.kind, room.id, before);
@@ -262,7 +264,7 @@ export function useChatRoom({
 			}
 			return false;
 		} finally {
-			if (generation === messageLoadGeneration) {
+			if (generation === messageLoadGeneration && !append) {
 				loading.value = false;
 			}
 		}

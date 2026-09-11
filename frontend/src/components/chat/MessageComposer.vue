@@ -257,6 +257,22 @@ function formatDuration(seconds) {
 	return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 }
 
+function dismissInput() {
+	if (showEmojiPicker.value) {
+		showEmojiPicker.value = false;
+		emit("emoji-picker-toggle", false);
+	}
+	textarea.value?.element?.blur();
+	if (document.activeElement instanceof HTMLElement) {
+		document.activeElement.blur();
+	}
+}
+
+defineExpose({
+	dismissInput,
+	focus: () => textarea.value?.focus(),
+});
+
 onBeforeUnmount(() => {
 	if (timer) clearInterval(timer);
 	if (mediaRecorder && mediaRecorder.state !== "inactive") {

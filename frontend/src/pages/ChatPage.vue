@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowLeft, Bell, BellOff, ChevronDown, Menu, MessageSquare, Search, Settings, UsersRound, X } from '@lucide/vue';
+import { ArrowLeft, Bell, BellOff, ChevronDown, Loader2, Menu, MessageSquare, Search, Settings, UsersRound, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDemoMode } from '../runtime.js';
@@ -183,17 +183,33 @@ const {
 const activeRoomMuted = computed(() => isRoomMuted(activeRoom.value));
 
 function handleRoomActivity({ room, message }) {
-  applyConversationActivity({
-    kind: room.kind,
-    roomId: room.id,
-    lastMessageAt: message.createdAt,
-    lastMessageContent: message.content,
-    lastMessageAttachmentType: message.attachment?.type,
-    lastMessageSenderName: message.sender?.displayName || message.senderName,
-    unreadCount: 0,
-    mentionUnreadCount: 0
-  });
-  markConversationRead(room.kind, room.id);
+  const isViewingThisChat = activeRoom.value &&
+    activeRoom.value.kind === room.kind &&
+    Number(activeRoom.value.id) === Number(room.id) &&
+    (!isMobileViewport.value || mobileView.value === 'chat');
+
+  if (isViewingThisChat) {
+    applyConversationActivity({
+      kind: room.kind,
+      roomId: room.id,
+      lastMessageAt: message.createdAt,
+      lastMessageContent: message.content,
+      lastMessageAttachmentType: message.attachment?.type,
+      lastMessageSenderName: message.sender?.displayName || message.senderName,
+      unreadCount: 0,
+      mentionUnreadCount: 0
+    });
+    markConversationRead(room.kind, room.id);
+  } else {
+    applyConversationActivity({
+      kind: room.kind,
+      roomId: room.id,
+      lastMessageAt: message.createdAt,
+      lastMessageContent: message.content,
+      lastMessageAttachmentType: message.attachment?.type,
+      lastMessageSenderName: message.sender?.displayName || message.senderName
+    });
+  }
 }
 
 function handleRoomAccessRevoked(room) {
@@ -225,6 +241,7 @@ const { connectUnreadInbox, disconnectUnreadInbox } = useUnreadInbox({
   markConversationRead,
   applyConversationActivity,
   notifyRoom,
+  isViewingChat: () => !isMobileViewport.value || mobileView.value === 'chat',
   onReconnected: () => {
     void refreshSidebar();
   }
@@ -610,6 +627,21 @@ function scrollToBottomSmooth() {
   }
 }
 
+const composerRef = ref(null);
+
+function handleChatAreaClick(event) {
+  if (event?.target && typeof event.target.closest === 'function') {
+    if (
+      event.target.closest('.message-context-menu') ||
+      event.target.closest('.avatar-modal-overlay') ||
+      event.target.closest('.chat-composer')
+    ) {
+      return;
+    }
+  }
+  composerRef.value?.dismissInput();
+}
+
 function handleEmojiPickerToggle(_open) {
   nextTick().then(() => {
     scrollToBottomSmooth();
@@ -733,7 +765,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <!-- Right Main Chat Window -->
-    <main class="chat-main">
+    <main class="chat-main" @click="handleChatAreaClick">
       <template v-if="activeRoom">
         <header class="chat-header">
           <button
@@ -843,8 +875,17 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <section ref="messagesEl" class="chat-messages" @scroll="handleScroll" @wheel="handleWheel">
-          <button v-if="hasMore && messages.length && !showMessageSearch" type="button" class="load-more-btn" @click="triggerLoadOlder">{{ t('chat.loadEarlier') }}</button>
+        <section ref="messagesEl" class="chat-messages" @scroll="handleScroll" @wheel="handleWheel" @click="handleChatAreaClick">
+          <button
+            v-if="hasMore && messages.length && !showMessageSearch"
+            type="button"
+            class="load-more-btn"
+            :disabled="loadingOlder"
+            @click="triggerLoadOlder"
+          >
+            <Loader2 v-if="loadingOlder" :size="14" class="load-more-spinner animate-spin" aria-hidden="true" />
+            <span>{{ loadingOlder ? t('chat.loadingMessages') : t('chat.loadEarlier') }}</span>
+          </button>
           <div v-if="loading" class="messages-hint">{{ t('chat.loadingMessages') }}</div>
           <div v-else-if="showMessageSearch && messageSearchQuery && !filteredMessages.length" class="messages-hint">{{ t('chat.noMatchingMessages') }}</div>
           <div v-else-if="!messages.length" class="messages-hint">{{ t('chat.noMessages') }}</div>
@@ -928,6 +969,7 @@ onBeforeUnmount(() => {
         />
 
 		<MessageComposer
+		  ref="composerRef"
 		  v-model="composerText"
 		  :pending-attachment="pendingAttachment"
 		  :is-uploading="isUploadingAttachment"
@@ -1510,7 +1552,10 @@ onBeforeUnmount(() => {
 }
 
 .load-more-btn {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin: 0 auto 16px;
   padding: 6px 16px;
   border: 1px solid #e8ecf0;
@@ -1519,12 +1564,26 @@ onBeforeUnmount(() => {
   color: #54656f;
   font-size: 12px;
   cursor: pointer;
-  transition: background 150ms, border-color 150ms;
+  transition: background 150ms, border-color 150ms, opacity 150ms;
 }
 
-.load-more-btn:hover {
+.load-more-btn:hover:not(:disabled) {
   background: #f5f7fa;
   border-color: #d1d5db;
+}
+
+.load-more-btn:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.load-more-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .messages-hint {

@@ -12,9 +12,13 @@ export function useUnreadInbox({
 	onReconnected = () => {},
 	isPageActive = () =>
 		globalThis.document?.visibilityState === "visible" &&
-		globalThis.document.hasFocus()
+		globalThis.document.hasFocus(),
+	isViewingChat = () => true,
 }) {
   function isActiveRoom(room) {
+    if (!isViewingChat()) {
+      return false;
+    }
     return (
       activeRoom.value &&
       activeRoom.value.kind === room.kind &&

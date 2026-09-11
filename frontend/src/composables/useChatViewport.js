@@ -58,6 +58,9 @@ export function useChatViewport({ activeRoom }) {
 		if (isMobileViewport.value) {
 			mobileView.value = "list";
 		}
+		if (activeRoom) {
+			activeRoom.value = null;
+		}
 	}
 
 	return {

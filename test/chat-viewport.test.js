@@ -78,7 +78,7 @@ test("移动端首次进入只显示会话列表，选择后可进入并返回",
 	assert.equal(viewport.mobileView.value, "chat");
 	viewport.returnToConversationList();
 	assert.equal(viewport.mobileView.value, "list");
-	assert.deepEqual(activeRoom.value, { kind: "dm", id: 3 });
+	assert.equal(activeRoom.value, null);
 
 	viewport.stopViewportSync();
 	assert.equal(browser.listeners.size, 0);
