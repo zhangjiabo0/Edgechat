@@ -10,6 +10,8 @@ export function useUnreadInbox({
 	openInboxConnection = connectInboxSocket,
 	notifyRoom = () => {},
 	onReconnected = () => {},
+	onRoomDeleted = () => {},
+	returnToConversationList = () => {},
 	isPageActive = () =>
 		globalThis.document?.visibilityState === "visible" &&
 		globalThis.document.hasFocus(),
@@ -39,6 +41,19 @@ export function useUnreadInbox({
 				}
 			},
 			onMessage(payload) {
+				if (payload.type === 'room_deleted' && payload.room) {
+					const isCurrent =
+						activeRoom.value &&
+						Number(activeRoom.value.id) === Number(payload.room.id) &&
+						(activeRoom.value.kind === payload.room.kind || payload.room.kind === 'channel');
+					if (isCurrent) {
+						activeRoom.value = null;
+						returnToConversationList();
+					}
+					onRoomDeleted();
+					return;
+				}
+
         if (payload.type !== 'room_message' || !payload.room) {
           return;
         }

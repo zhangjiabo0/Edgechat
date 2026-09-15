@@ -140,4 +140,10 @@ export const D1_MIGRATIONS = [
 		file: "worker/migrations/2026-09-10-web-push.sql",
 		artifacts: ["table:web_push_subscriptions", "index:idx_web_push_subscriptions_user"],
 	},
+	{
+		id: "2026-09-16-channel-name-non-unique",
+		file: "worker/migrations/2026-09-16-channel-name-non-unique.sql",
+		artifacts: [],
+		rerunnable: true,
+	},
 ];

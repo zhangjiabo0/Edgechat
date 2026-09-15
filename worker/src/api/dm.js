@@ -1,5 +1,8 @@
 import { ensureDmChannel } from '../data/dm-provisioning.js';
 import { listAdminDms, listUserDms } from '../data/dm-queries.js';
+import { listRoomMemberIds } from '../data/unread.js';
+import { notifyUserInbox } from '../do-bridge.js';
+import { getChannelMembership } from '../room-access.js';
 import { errorResponse, parseJsonRequest } from '../utils.js';
 import { activeUserSql } from '../user-status.js';
 
@@ -50,6 +53,53 @@ export function registerDmRoutes(app) {
         }
       }
     });
+  });
+
+  app.delete('/api/dm/:channelId', async (c) => {
+    const session = c.get('session');
+    const channelId = Number(c.req.param('channelId'));
+    if (!Number.isFinite(channelId)) {
+      return errorResponse('私聊不存在', 404);
+    }
+
+    const channel = await c.env.DB.prepare(
+      `SELECT id, kind, dm_key FROM channels WHERE id = ? AND kind = 'dm' AND deleted_at IS NULL LIMIT 1`
+    )
+      .bind(channelId)
+      .first();
+
+    if (!channel) {
+      return errorResponse('私聊不存在', 404);
+    }
+
+    const membership = await getChannelMembership(c.env.DB, channelId, session.userId);
+    if (!membership && !session.isAdmin) {
+      return errorResponse('无权删除此私聊', 403);
+    }
+
+    const memberIds = await listRoomMemberIds(c.env.DB, channelId);
+
+    await c.env.DB.prepare(
+      `UPDATE channels
+       SET deleted_at = CURRENT_TIMESTAMP,
+           dm_key = NULL
+       WHERE id = ? AND kind = 'dm' AND deleted_at IS NULL`
+    )
+      .bind(channelId)
+      .run();
+
+    for (const userId of memberIds) {
+      notifyUserInbox(c.env, userId, {
+        protocolVersion: 1,
+        type: 'room_deleted',
+        room: {
+          id: channelId,
+          kind: 'dm'
+        }
+      }).catch(() => {});
+    }
+
+    return c.json({ ok: true });
   });
 
   app.get('/api/admin/dms', async (c) => {

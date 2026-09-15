@@ -23,6 +23,10 @@ defineProps({
     type: Boolean,
     default: false
   },
+  currentUserId: {
+    type: [Number, String],
+    default: null
+  },
   inviteUserId: {
     type: String,
     default: ''
@@ -71,7 +75,7 @@ const emit = defineEmits(['close', 'update:inviteUserId', 'invite', 'remove-memb
             {{ member.role === 'owner' ? t('members.owner') : t('members.member') }}
           </UiBadge>
           <UiButton
-			v-if="canManage && member.role !== 'owner'"
+            v-if="(canManage || Number(member.id) === Number(currentUserId)) && member.role !== 'owner'"
             variant="secondary"
             size="sm"
             @click="emit('remove-member', member)"

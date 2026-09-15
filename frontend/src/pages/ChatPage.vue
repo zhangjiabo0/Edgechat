@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowLeft, Bell, BellOff, ChevronDown, Loader2, Menu, MessageSquare, Search, Settings, UsersRound, X } from '@lucide/vue';
+import { ArrowLeft, Bell, BellOff, ChevronDown, Loader2, Menu, MessageSquare, Search, Settings, Trash2, UsersRound, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onBeforeUpdate, onMounted, onUpdated, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDemoMode } from '../runtime.js';
@@ -244,7 +244,14 @@ const { connectUnreadInbox, disconnectUnreadInbox } = useUnreadInbox({
   isViewingChat: () => !isMobileViewport.value || mobileView.value === 'chat',
   onReconnected: () => {
     void refreshSidebar();
-  }
+  },
+  onRoomDeleted: () => {
+    disconnectSocket();
+    messages.value = [];
+    pinnedMessage.value = null;
+    void refreshSidebar();
+  },
+  returnToConversationList
 });
 
 const wsConnected = computed(() => wsStatus.value === 'open');
@@ -274,6 +281,7 @@ const canDeleteSelectedMessage = computed(() => {
 
 const roomManagement = useRoomManagement({
   activeRoom, channels, users, error, refreshSidebar, refreshAndOpen, canManageActiveRoom,
+  currentUserId: computed(() => session.value?.userId),
   returnToConversationList,
   onRoomDeleted: () => {
     disconnectSocket();
@@ -281,7 +289,7 @@ const roomManagement = useRoomManagement({
     pinnedMessage.value = null;
   }
 });
-const { creation, members: memberManagement, settings: groupSettings, deleteGroup } = roomManagement;
+const { creation, members: memberManagement, settings: groupSettings, deleteGroup, deleteDm } = roomManagement;
 const {
   show: showCreateGroup,
   form: createGroupForm,
@@ -780,6 +788,7 @@ onBeforeUnmount(() => {
 		  :loading="sidebarLoading"
 		  :is-room-muted="isRoomMuted"
 		  @select="selectConversation"
+		  @delete-dm="deleteDm"
 		/>
 
 		<PublicGroupDiscovery :items="publicGroupItems" @select="openPublicGroupPreview" />
@@ -861,6 +870,17 @@ onBeforeUnmount(() => {
             >
               <Settings :size="19" aria-hidden="true" />
               <span>{{ t('chat.groupSettings') }}</span>
+            </button>
+            <button
+              v-if="activeRoom.kind === 'dm'"
+              type="button"
+              class="chat-header__button"
+              :title="t('chat.deleteDm')"
+              :aria-label="t('chat.deleteDm')"
+              @click="deleteDm()"
+            >
+              <Trash2 :size="19" aria-hidden="true" />
+              <span>{{ t('common.delete') }}</span>
             </button>
             <LanguageSwitch class="chat-header__language-switch" />
           </div>
@@ -1026,6 +1046,7 @@ onBeforeUnmount(() => {
           :members="groupMembers"
           :loading="memberLoading"
           :can-manage="canManageActiveRoom"
+          :current-user-id="session?.userId"
           :invite-user-id="inviteUserId"
           :available-invite-users="availableInviteUsers"
           :invite-submitting="inviteSubmitting"

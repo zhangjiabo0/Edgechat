@@ -374,6 +374,12 @@ export async function requestDemo(path, options = {}) {
   if (method === 'GET' && pathname === '/dm') {
     return { dms: demoState.dms.map(projectDemoDm) };
   }
+  const deleteDmMatch = pathname.match(/^\/dm\/(\d+)$/);
+  if (method === 'DELETE' && deleteDmMatch) {
+    const dmId = Number(deleteDmMatch[1]);
+    demoState.dms = demoState.dms.filter((item) => Number(item.id) !== dmId);
+    return { ok: true };
+  }
   if (method === 'POST' && pathname === '/upload') {
     const file = body.get('file');
     if (!file) fail('请选择文件');

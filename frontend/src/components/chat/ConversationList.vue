@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { AtSign, BellOff, Search, X } from "@lucide/vue";
+import { AtSign, BellOff, Search, Trash2, X } from "@lucide/vue";
 import { t } from "../../i18n.js";
 import UiAvatar from "../ui/Avatar.vue";
 
@@ -23,7 +23,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(["select"]);
+const emit = defineEmits(["select", "delete-dm"]);
 
 const searchQuery = ref("");
 
@@ -74,14 +74,16 @@ const filteredItems = computed(() => {
 				<div v-else-if="!filteredItems.length" class="sidebar-hint">
 					{{ t("chat.noMatchingConversations") }}
 				</div>
-				<button
+				<div
 					v-for="item in filteredItems"
 					:key="item.key"
-				type="button"
-				class="sidebar-item"
-				:class="{ 'sidebar-item--active': activeKey === item.key }"
-				@click="emit('select', item)"
-			>
+					role="button"
+					tabindex="0"
+					class="sidebar-item"
+					:class="{ 'sidebar-item--active': activeKey === item.key }"
+					@click="emit('select', item)"
+					@keydown.enter="emit('select', item)"
+				>
 				<UiAvatar
 					:src="item.avatarUrl"
 					:fallback="item.fallback?.[0] || '?'"
@@ -90,7 +92,19 @@ const filteredItems = computed(() => {
 				<div class="sidebar-label-group">
 					<div class="sidebar-item__top">
 						<strong>{{ item.title }}</strong>
-						<span class="sidebar-item__time">{{ item.dateLabel }}</span>
+						<div class="sidebar-item__top-meta">
+							<span class="sidebar-item__time">{{ item.dateLabel }}</span>
+							<button
+								v-if="item.kind === 'dm'"
+								type="button"
+								class="sidebar-item__delete"
+								:title="t('chat.deleteDm')"
+								:aria-label="t('chat.deleteDm')"
+								@click.stop="emit('delete-dm', item.source)"
+							>
+								<Trash2 :size="13" aria-hidden="true" />
+							</button>
+						</div>
 					</div>
 					<div class="sidebar-item__bottom">
 						<p class="sidebar-item__preview">{{ item.subtitle }}</p>
@@ -111,7 +125,7 @@ const filteredItems = computed(() => {
 						</span>
 					</div>
 				</div>
-			</button>
+			</div>
 			</template>
 		</div>
 	</div>
@@ -272,10 +286,43 @@ const filteredItems = computed(() => {
 	white-space: nowrap;
 }
 
+.sidebar-item__top-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
 .sidebar-item__time {
 	flex-shrink: 0;
 	color: #667781;
 	font-size: 12px;
+}
+
+.sidebar-item__delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: #8696a0;
+	opacity: 0;
+	transition: opacity 150ms, color 150ms, background 150ms;
+	cursor: pointer;
+}
+
+.sidebar-item:hover .sidebar-item__delete,
+.sidebar-item:focus-within .sidebar-item__delete {
+	opacity: 1;
+}
+
+.sidebar-item__delete:hover {
+	color: #ea4335;
+	background: rgba(234, 67, 53, 0.12);
 }
 
 .sidebar-item__bottom {

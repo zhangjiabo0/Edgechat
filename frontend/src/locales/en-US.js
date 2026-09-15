@@ -93,6 +93,8 @@ export default {
   'chat.roomAccessRevokedNamed': 'You no longer have access to "{name}".',
   'chat.roomAccessRevoked': 'You no longer have access to this conversation.',
   'chat.deleteMessageConfirm': 'Delete this message? It will disappear for everyone in this conversation.',
+  'chat.deleteDm': 'Delete direct message',
+  'chat.deleteDmConfirm': 'Are you sure you want to delete the direct message with {name}? It will also be deleted for the other participant.',
   'chat.addPeople': 'Add people',
   'chat.loadingConversations': 'Loading...',
   'chat.noConversations': 'No conversations',

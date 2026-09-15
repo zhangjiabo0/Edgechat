@@ -173,6 +173,11 @@ export default {
   listDms() {
     return request('/dm');
   },
+  deleteDm(channelId) {
+    return request(`/dm/${channelId}`, {
+      method: 'DELETE'
+    });
+  },
   uploadFile(file, onProgress) {
     if (isDemoMode) {
       if (typeof onProgress === 'function') {

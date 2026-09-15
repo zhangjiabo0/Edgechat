@@ -42,6 +42,9 @@ function createHarness(overrides = {}) {
 		async deleteOwnedChannel(id) {
 			calls.push(["deleteOwnedChannel", id]);
 		},
+		async deleteDm(id) {
+			calls.push(["deleteDm", id]);
+		},
 		async updateChannel(id, payload) {
 			calls.push(["updateChannel", id, payload]);
 			return {
@@ -65,6 +68,7 @@ function createHarness(overrides = {}) {
 		refreshSidebar,
 		refreshAndOpen,
 		canManageActiveRoom: computed(() => Boolean(activeRoom.value?.canManage)),
+		currentUserId: overrides.currentUserId !== undefined ? overrides.currentUserId : 1,
 		onRoomDeleted: () => calls.push(["onRoomDeleted"]),
 		returnToConversationList: () => calls.push(["returnToConversationList"]),
 		roomApi,
@@ -205,4 +209,37 @@ test("快速切换群组时旧成员请求不会覆盖当前会话", async () =>
 	});
 	await nextTick();
 	assert.equal(management.members.items.value[0].username, "next");
+});
+
+test("移除群聊中的自己时重置当前会话并返回会话列表", async () => {
+	const { management, activeRoom, calls } = createHarness({
+		currentUserId: 1,
+	});
+	await management.members.remove({ id: 1, displayName: "Alice" });
+
+	assert.equal(activeRoom.value, null);
+	assert.deepEqual(calls.filter(([name]) => name !== "refreshSidebar"), [
+		["removeChannelMember", 4, 1],
+		["onRoomDeleted"],
+		["returnToConversationList"],
+	]);
+});
+
+test("删除私聊会话时调用 deleteDm 并重置当前活跃私聊", async () => {
+	const { management, activeRoom, calls } = createHarness();
+	activeRoom.value = {
+		id: 10,
+		kind: "dm",
+		name: "1:2",
+		otherUser: { id: 2, displayName: "Bob" },
+	};
+
+	await management.deleteDm();
+
+	assert.equal(activeRoom.value, null);
+	assert.deepEqual(calls.filter(([name]) => name !== "refreshSidebar"), [
+		["deleteDm", 10],
+		["onRoomDeleted"],
+		["returnToConversationList"],
+	]);
 });

@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, unref, watch } from "vue";
 import api from "../api.js";
 import { t } from "../i18n.js";
 
@@ -10,11 +10,13 @@ export function useRoomManagement({
 	refreshSidebar,
 	refreshAndOpen,
 	canManageActiveRoom,
+	currentUserId,
 	onRoomDeleted = () => {},
 	returnToConversationList = () => {},
 	roomApi = api,
 	confirmAction = (message) => window.confirm(message),
 }) {
+	const myUserId = computed(() => Number(unref(currentUserId) || 0));
 	const showCreateGroup = ref(false);
 	const creatingGroup = ref(false);
 	const createGroupForm = reactive({
@@ -180,46 +182,87 @@ export function useRoomManagement({
 				!activeRoom.value ||
 				activeRoom.value.kind === "dm"
 			) {
-			return;
-		}
+				return;
+			}
+			const isSelf = myUserId.value > 0 && Number(member.id) === myUserId.value;
 			if (!confirmAction(t('group.removeMemberConfirm', { name: member.displayName }))) {
-			return;
-		}
+				return;
+			}
 
-		try {
-			const payload = await roomApi.removeChannelMember(activeRoom.value.id, member.id);
-			groupMembers.value = payload.members;
-			activeRoom.value.memberCount = payload.members.length;
-			await refreshSidebar();
-		} catch (currentError) {
-			error.value = currentError.message;
+			try {
+				const payload = await roomApi.removeChannelMember(activeRoom.value.id, member.id);
+				if (isSelf) {
+					activeRoom.value = null;
+					groupMembers.value = [];
+					showGroupEditor.value = false;
+					showMemberPanel.value = false;
+					onRoomDeleted();
+					returnToConversationList();
+					await refreshSidebar();
+					return;
+				}
+				groupMembers.value = payload.members;
+				activeRoom.value.memberCount = payload.members.length;
+				await refreshSidebar();
+			} catch (currentError) {
+				error.value = currentError.message;
+			}
 		}
-	}
 
 		async function deleteGroup() {
 			if (
 				!activeRoom.value ||
 				activeRoom.value.kind === "dm"
 			) {
-			return;
-		}
+				return;
+			}
 			if (!confirmAction(t('group.deleteConfirm', { name: activeRoom.value.name }))) {
-			return;
+				return;
+			}
+
+			try {
+				await roomApi.deleteOwnedChannel(activeRoom.value.id);
+				activeRoom.value = null;
+				groupMembers.value = [];
+				showGroupEditor.value = false;
+				showMemberPanel.value = false;
+				onRoomDeleted();
+				returnToConversationList();
+				await refreshSidebar();
+			} catch (currentError) {
+				error.value = currentError.message;
+			}
 		}
 
-		try {
-			await roomApi.deleteOwnedChannel(activeRoom.value.id);
-			activeRoom.value = null;
-			groupMembers.value = [];
-			showGroupEditor.value = false;
-			showMemberPanel.value = false;
-			onRoomDeleted();
-			returnToConversationList();
-			await refreshSidebar();
-		} catch (currentError) {
-			error.value = currentError.message;
+		async function deleteDm(targetDm = null) {
+			const room = targetDm || activeRoom.value;
+			if (!room || room.kind !== "dm") {
+				return;
+			}
+			const targetName = room.otherUser?.displayName || room.name || "";
+			if (!confirmAction(t('chat.deleteDmConfirm', { name: targetName }))) {
+				return;
+			}
+
+			try {
+				await roomApi.deleteDm(room.id);
+				if (
+					activeRoom.value &&
+					activeRoom.value.kind === "dm" &&
+					Number(activeRoom.value.id) === Number(room.id)
+				) {
+					activeRoom.value = null;
+					groupMembers.value = [];
+					showGroupEditor.value = false;
+					showMemberPanel.value = false;
+					onRoomDeleted();
+					returnToConversationList();
+				}
+				await refreshSidebar();
+			} catch (currentError) {
+				error.value = currentError.message;
+			}
 		}
-	}
 
 	async function uploadGroupAvatar(event) {
 		const file = event.target.files?.[0];
@@ -330,5 +373,6 @@ export function useRoomManagement({
 			save: saveGroupSettings,
 		},
 		deleteGroup,
+		deleteDm,
 	};
 }

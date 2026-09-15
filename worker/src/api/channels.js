@@ -9,8 +9,9 @@ import {
   getChannelById,
   getChannelMembership
 } from '../room-access.js';
-import { ApiError } from '../errors.js';
 import { resolveAvatarKeyUpdate } from '../avatar-policy.js';
+import { listRoomMemberIds } from '../data/unread.js';
+import { notifyUserInbox } from '../do-bridge.js';
 import { errorResponse, parseJsonRequest, publicFileUrl } from '../utils.js';
 import { activeUserSql } from '../user-status.js';
 
@@ -77,13 +78,7 @@ export function registerChannelRoutes(app) {
        VALUES (?, ?, ?, ?)`
     )
       .bind(name, description, kind, session.userId)
-      .run()
-      .catch((error) => {
-        if (String(error.message).includes('UNIQUE')) {
-          throw new ApiError('群组名称已存在');
-        }
-        throw error;
-      });
+      .run();
 
     const channelId = Number(result.meta.last_row_id);
     const statements = [
@@ -214,22 +209,15 @@ export function registerChannelRoutes(app) {
       return c.json({ ok: true });
     }
 
-    try {
-      await c.env.DB.prepare(
-        `UPDATE channels
-         SET ${updates.join(', ')}
-         WHERE id = ?
-           AND kind IN ('public', 'private')
-           AND deleted_at IS NULL`
-      )
-        .bind(...binds, channelId)
-        .run();
-    } catch (error) {
-      if (String(error.message).includes('UNIQUE')) {
-        return errorResponse('群组名称已存在');
-      }
-      throw error;
-    }
+    await c.env.DB.prepare(
+      `UPDATE channels
+       SET ${updates.join(', ')}
+       WHERE id = ?
+         AND kind IN ('public', 'private')
+         AND deleted_at IS NULL`
+    )
+      .bind(...binds, channelId)
+      .run();
 
     const updated = await getChannelById(c.env.DB, channelId);
     return c.json({
@@ -277,8 +265,9 @@ export function registerChannelRoutes(app) {
     const session = c.get('session');
     const channelId = Number(c.req.param('channelId'));
     const userId = Number(c.req.param('userId'));
+    const isSelf = session.userId === userId;
     const management = await authorizeChannelManagement(c.env.DB, session, channelId);
-    if (!management.ok) {
+    if (!isSelf && !management.ok) {
       return errorResponse('只有群主或管理员可以移除成员', 403);
     }
 
@@ -299,6 +288,15 @@ export function registerChannelRoutes(app) {
       .bind(channelId, userId)
       .run();
 
+    notifyUserInbox(c.env, userId, {
+      protocolVersion: 1,
+      type: 'room_deleted',
+      room: {
+        id: channelId,
+        kind: 'channel'
+      }
+    }).catch(() => {});
+
     return c.json({
       ok: true,
       members: await listChannelMembers(c.env.DB, channelId)
@@ -313,6 +311,8 @@ export function registerChannelRoutes(app) {
       return errorResponse('只有群主或管理员可以删除群组', 403);
     }
 
+    const memberIds = await listRoomMemberIds(c.env.DB, channelId);
+
     await c.env.DB.prepare(
       `UPDATE channels
        SET deleted_at = CURRENT_TIMESTAMP
@@ -322,6 +322,17 @@ export function registerChannelRoutes(app) {
     )
       .bind(channelId)
       .run();
+
+    for (const memberId of memberIds) {
+      notifyUserInbox(c.env, memberId, {
+        protocolVersion: 1,
+        type: 'room_deleted',
+        room: {
+          id: channelId,
+          kind: 'channel'
+        }
+      }).catch(() => {});
+    }
 
     return c.json({ ok: true });
   });
@@ -338,6 +349,8 @@ export function registerChannelRoutes(app) {
       return errorResponse('群组不存在', 404);
     }
 
+    const memberIds = await listRoomMemberIds(c.env.DB, channelId);
+
     await c.env.DB.prepare(
       `UPDATE channels
        SET deleted_at = CURRENT_TIMESTAMP
@@ -347,6 +360,17 @@ export function registerChannelRoutes(app) {
     )
       .bind(channelId)
       .run();
+
+    for (const memberId of memberIds) {
+      notifyUserInbox(c.env, memberId, {
+        protocolVersion: 1,
+        type: 'room_deleted',
+        room: {
+          id: channelId,
+          kind: 'channel'
+        }
+      }).catch(() => {});
+    }
 
     return c.json({ ok: true });
   });
