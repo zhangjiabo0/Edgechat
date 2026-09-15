@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { AtSign, BellOff, Search, Trash2, X } from "@lucide/vue";
 import { t } from "../../i18n.js";
 import UiAvatar from "../ui/Avatar.vue";
@@ -35,6 +35,135 @@ const filteredItems = computed(() => {
 		const subtitle = (item.subtitle || "").toLowerCase();
 		return title.includes(q) || subtitle.includes(q);
 	});
+});
+
+const contextMenu = ref({
+	open: false,
+	x: 0,
+	y: 0,
+	item: null,
+});
+
+const menuEl = ref(null);
+let longPressTimer = null;
+let longPressOrigin = null;
+let hasLongPressed = false;
+const LONG_PRESS_DELAY_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
+
+function closeContextMenu() {
+	contextMenu.value = { open: false, x: 0, y: 0, item: null };
+}
+
+function cancelLongPress() {
+	if (longPressTimer !== null) {
+		globalThis.clearTimeout(longPressTimer);
+		longPressTimer = null;
+	}
+	longPressOrigin = null;
+}
+
+function openContextMenu(event, item) {
+	if (item.kind !== "dm") return;
+	event.preventDefault();
+	event.stopPropagation();
+	cancelLongPress();
+	contextMenu.value = {
+		open: true,
+		x: event.clientX,
+		y: event.clientY,
+		item,
+	};
+}
+
+function handlePointerDown(event, item) {
+	if (item.kind !== "dm") return;
+	cancelLongPress();
+	hasLongPressed = false;
+	if (event.pointerType === "mouse") {
+		return;
+	}
+	const origin = {
+		pointerId: event.pointerId,
+		x: event.clientX,
+		y: event.clientY,
+	};
+	longPressOrigin = origin;
+	longPressTimer = globalThis.setTimeout(() => {
+		hasLongPressed = true;
+		contextMenu.value = {
+			open: true,
+			x: origin.x,
+			y: origin.y,
+			item,
+		};
+		longPressTimer = null;
+	}, LONG_PRESS_DELAY_MS);
+}
+
+function handlePointerMove(event) {
+	if (!longPressOrigin || event.pointerId !== longPressOrigin.pointerId) {
+		return;
+	}
+	const deltaX = Math.abs(event.clientX - longPressOrigin.x);
+	const deltaY = Math.abs(event.clientY - longPressOrigin.y);
+	if (deltaX > LONG_PRESS_MOVE_TOLERANCE_PX || deltaY > LONG_PRESS_MOVE_TOLERANCE_PX) {
+		cancelLongPress();
+	}
+}
+
+function handlePointerUp(event) {
+	if (longPressOrigin && event.pointerId === longPressOrigin.pointerId) {
+		cancelLongPress();
+	}
+}
+
+function handleItemClick(item) {
+	if (hasLongPressed) {
+		hasLongPressed = false;
+		return;
+	}
+	closeContextMenu();
+	emit("select", item);
+}
+
+function handleDeleteDm() {
+	const item = contextMenu.value.item;
+	closeContextMenu();
+	if (item && item.kind === "dm") {
+		emit("delete-dm", item.source);
+	}
+}
+
+function handleWindowPointerDown(event) {
+	if (contextMenu.value.open && !menuEl.value?.contains(event.target)) {
+		closeContextMenu();
+	}
+}
+
+function handleWindowKeydown(event) {
+	if (contextMenu.value.open && event.key === "Escape") {
+		closeContextMenu();
+	}
+}
+
+onMounted(() => {
+	if (typeof window !== "undefined") {
+		window.addEventListener("pointerdown", handleWindowPointerDown);
+		window.addEventListener("keydown", handleWindowKeydown);
+		window.addEventListener("resize", closeContextMenu);
+		window.addEventListener("scroll", closeContextMenu, true);
+	}
+});
+
+onBeforeUnmount(() => {
+	cancelLongPress();
+	if (typeof window !== "undefined") {
+		window.removeEventListener("pointerdown", handleWindowPointerDown);
+		window.removeEventListener("keydown", handleWindowKeydown);
+		window.removeEventListener("resize", closeContextMenu);
+		window.removeEventListener("scroll", closeContextMenu, true);
+	}
 });
 </script>
 
@@ -74,60 +203,77 @@ const filteredItems = computed(() => {
 				<div v-else-if="!filteredItems.length" class="sidebar-hint">
 					{{ t("chat.noMatchingConversations") }}
 				</div>
-				<div
+				<button
 					v-for="item in filteredItems"
 					:key="item.key"
-					role="button"
-					tabindex="0"
+					type="button"
 					class="sidebar-item"
 					:class="{ 'sidebar-item--active': activeKey === item.key }"
-					@click="emit('select', item)"
-					@keydown.enter="emit('select', item)"
+					@click="handleItemClick(item)"
+					@contextmenu="openContextMenu($event, item)"
+					@pointerdown="handlePointerDown($event, item)"
+					@pointermove="handlePointerMove"
+					@pointerup="handlePointerUp"
+					@pointercancel="cancelLongPress"
 				>
-				<UiAvatar
-					:src="item.avatarUrl"
-					:fallback="item.fallback?.[0] || '?'"
-					size="sm"
-				/>
-				<div class="sidebar-label-group">
-					<div class="sidebar-item__top">
-						<strong>{{ item.title }}</strong>
-						<div class="sidebar-item__top-meta">
+					<UiAvatar
+						:src="item.avatarUrl"
+						:fallback="item.fallback?.[0] || '?'"
+						size="sm"
+					/>
+					<div class="sidebar-label-group">
+						<div class="sidebar-item__top">
+							<strong>{{ item.title }}</strong>
 							<span class="sidebar-item__time">{{ item.dateLabel }}</span>
-							<button
-								v-if="item.kind === 'dm'"
-								type="button"
-								class="sidebar-item__delete"
-								:title="t('chat.deleteDm')"
-								:aria-label="t('chat.deleteDm')"
-								@click.stop="emit('delete-dm', item.source)"
+						</div>
+						<div class="sidebar-item__bottom">
+							<p class="sidebar-item__preview">{{ item.subtitle }}</p>
+							<span
+								v-if="isRoomMuted(item)"
+								class="sidebar-muted-indicator"
+								:title="t('chat.muted')"
+								:aria-label="t('chat.muted')"
 							>
-								<Trash2 :size="13" aria-hidden="true" />
-							</button>
+								<BellOff :size="14" aria-hidden="true" />
+							</span>
+							<span v-if="item.mentionUnreadCount > 0" class="sidebar-mention-badge">
+								<AtSign :size="13" aria-hidden="true" />
+								{{ t("chat.mentionedMe") }}
+							</span>
+							<span v-if="item.unreadCount > 0" class="sidebar-unread-badge">
+								{{ item.unreadCount > 99 ? "99+" : item.unreadCount }}
+							</span>
 						</div>
 					</div>
-					<div class="sidebar-item__bottom">
-						<p class="sidebar-item__preview">{{ item.subtitle }}</p>
-						<span
-							v-if="isRoomMuted(item)"
-							class="sidebar-muted-indicator"
-							:title="t('chat.muted')"
-							:aria-label="t('chat.muted')"
-						>
-							<BellOff :size="14" aria-hidden="true" />
-						</span>
-						<span v-if="item.mentionUnreadCount > 0" class="sidebar-mention-badge">
-							<AtSign :size="13" aria-hidden="true" />
-							{{ t("chat.mentionedMe") }}
-						</span>
-						<span v-if="item.unreadCount > 0" class="sidebar-unread-badge">
-							{{ item.unreadCount > 99 ? "99+" : item.unreadCount }}
-						</span>
-					</div>
-				</div>
-			</div>
+				</button>
 			</template>
 		</div>
+
+		<Teleport to="body">
+			<Transition name="conversation-menu">
+				<div
+					v-if="contextMenu.open && contextMenu.item"
+					ref="menuEl"
+					class="conversation-context-menu"
+					:style="{
+						left: `${Math.max(8, Math.min(contextMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 1000) - 180))}px`,
+						top: `${Math.max(8, Math.min(contextMenu.y, (typeof window !== 'undefined' ? window.innerHeight : 1000) - 60))}px`
+					}"
+					role="menu"
+					@contextmenu.prevent
+				>
+					<button
+						type="button"
+						role="menuitem"
+						class="conversation-context-menu__danger"
+						@click="handleDeleteDm"
+					>
+						<Trash2 :size="16" aria-hidden="true" />
+						{{ t('chat.deleteDm') }}
+					</button>
+				</div>
+			</Transition>
+		</Teleport>
 	</div>
 </template>
 
@@ -162,20 +308,21 @@ const filteredItems = computed(() => {
 
 .sidebar-search-input {
 	width: 100%;
-	height: 34px;
+	height: 35px;
 	padding: 0 32px 0 32px;
-	border: 1px solid #e9edef;
+	border: 1px solid transparent;
 	border-radius: 8px;
 	background: #f0f2f5;
 	color: #111b21;
-	font-size: 13px;
+	font-size: 14px;
 	outline: none;
-	transition: background 150ms, border-color 150ms;
+	transition: all 150ms ease;
 }
 
 .sidebar-search-input:focus {
+	border-color: #00a884;
 	background: #ffffff;
-	border-color: #008069;
+	box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2);
 }
 
 .sidebar-search-input::-webkit-search-cancel-button {
@@ -184,23 +331,23 @@ const filteredItems = computed(() => {
 
 .search-clear-btn {
 	position: absolute;
-	right: 6px;
+	right: 8px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 22px;
-	height: 22px;
+	width: 20px;
+	height: 20px;
 	padding: 0;
 	border: none;
 	border-radius: 50%;
 	background: transparent;
 	color: #8696a0;
 	cursor: pointer;
+	transition: background 150ms;
 }
 
 .search-clear-btn:hover {
-	background: rgba(0, 0, 0, 0.08);
-	color: #111b21;
+	background: rgba(0, 0, 0, 0.06);
 }
 
 .sidebar-list {
@@ -209,7 +356,7 @@ const filteredItems = computed(() => {
 	height: 100%;
 	overflow-y: auto;
 	overflow-x: hidden;
-	padding: 0;
+	padding: 4px 0;
 	touch-action: pan-y;
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior-y: none;
@@ -246,6 +393,8 @@ const filteredItems = computed(() => {
 	cursor: pointer;
 	text-align: left;
 	transition: background 150ms;
+	user-select: none;
+	-webkit-user-select: none;
 }
 
 .sidebar-item:hover {
@@ -286,43 +435,10 @@ const filteredItems = computed(() => {
 	white-space: nowrap;
 }
 
-.sidebar-item__top-meta {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	flex-shrink: 0;
-}
-
 .sidebar-item__time {
 	flex-shrink: 0;
 	color: #667781;
 	font-size: 12px;
-}
-
-.sidebar-item__delete {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 22px;
-	height: 22px;
-	padding: 0;
-	border: none;
-	border-radius: 4px;
-	background: transparent;
-	color: #8696a0;
-	opacity: 0;
-	transition: opacity 150ms, color 150ms, background 150ms;
-	cursor: pointer;
-}
-
-.sidebar-item:hover .sidebar-item__delete,
-.sidebar-item:focus-within .sidebar-item__delete {
-	opacity: 1;
-}
-
-.sidebar-item__delete:hover {
-	color: #ea4335;
-	background: rgba(234, 67, 53, 0.12);
 }
 
 .sidebar-item__bottom {
@@ -346,7 +462,7 @@ const filteredItems = computed(() => {
 
 .sidebar-muted-indicator {
 	display: inline-flex;
-	flex: 0 0 auto;
+	flex-shrink: 0;
 	align-items: center;
 	justify-content: center;
 	color: #8696a0;
@@ -378,6 +494,55 @@ const filteredItems = computed(() => {
 	font-size: 11px;
 	font-weight: 700;
 	white-space: nowrap;
+}
+
+.conversation-context-menu {
+	position: fixed;
+	z-index: 1000;
+	width: 168px;
+	padding: 6px;
+	border: 1px solid rgba(11, 20, 26, 0.08);
+	border-radius: 8px;
+	background: #ffffff;
+	box-shadow: 0 2px 5px rgba(11, 20, 26, 0.16), 0 6px 18px rgba(11, 20, 26, 0.12);
+}
+
+.conversation-context-menu button {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	min-height: 36px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: #111b21;
+	font: inherit;
+	font-size: 13.5px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.conversation-context-menu button.conversation-context-menu__danger {
+	color: #c62828;
+}
+
+.conversation-context-menu button:hover,
+.conversation-context-menu button:active {
+	background: #f5f6f6;
+}
+
+.conversation-menu-enter-active,
+.conversation-menu-leave-active {
+	transition: opacity 100ms ease, transform 100ms ease;
+	transform-origin: top left;
+}
+
+.conversation-menu-enter-from,
+.conversation-menu-leave-to {
+	opacity: 0;
+	transform: scale(0.96);
 }
 
 @media (max-width: 960px) {
