@@ -15,7 +15,7 @@ async function mapVisibleChannel(row, env) {
 	}
 	return {
 		id: Number(row.id),
-		name: row.name,
+		name: String(row.name || '').replace(/\u200B+/g, ''),
 		description: row.description,
 		avatarKey: row.avatar_key || "",
 		avatarUrl: row.avatar_key ? publicFileUrl(row.avatar_key) : "",
@@ -38,7 +38,7 @@ async function mapVisibleChannel(row, env) {
 function mapAdminChannel(row, includeAvatar) {
 	const channel = {
 		id: Number(row.id),
-		name: row.name,
+		name: String(row.name || '').replace(/\u200B+/g, ''),
 		description: row.description,
 		kind: row.kind,
 		isGeneral: false,

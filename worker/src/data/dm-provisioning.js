@@ -13,12 +13,23 @@ export async function ensureDmChannel(db, actorId, targetUserId) {
 		return existing.results[0];
 	}
 
+	// 清理可能遗留的已删除同key旧私聊，释放dm_key与name的UNIQUE约束
+	await db
+		.prepare(
+			`UPDATE channels
+			 SET dm_key = NULL, name = 'deleted:' || id || ':' || name
+			 WHERE kind = 'dm' AND (dm_key = ? OR name = ? OR name LIKE ?) AND deleted_at IS NOT NULL`,
+		)
+		.bind(dmKey, dmKey, `dm:${dmKey}:%`)
+		.run();
+
+	const uniqueName = `dm:${dmKey}:${Date.now()}`;
 	const created = await db
 		.prepare(
 			`INSERT INTO channels (name, description, kind, dm_key, created_by)
 			 VALUES (?, '', 'dm', ?, ?)`,
 		)
-		.bind(dmKey, dmKey, Number(actorId))
+		.bind(uniqueName, dmKey, Number(actorId))
 		.run();
 	const channelId = created.meta.last_row_id;
 	await db.batch([

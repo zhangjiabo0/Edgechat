@@ -38,6 +38,9 @@ export async function getChannelById(db, channelId) {
 		)
 		.bind(numericChannelId)
 		.all();
+	if (results[0]) {
+		results[0].name = String(results[0].name || '').replace(/\u200B+/g, '');
+	}
 	return results[0] || null;
 }
 

@@ -45,6 +45,49 @@ async function ensureValidInvitees(db, userIds) {
   return results.map((row) => Number(row.id));
 }
 
+export function cleanChannelName(name) {
+  return String(name || '').replace(/\u200B+/g, '');
+}
+
+async function insertChannelWithSafeName(db, { name, description, kind, userId }) {
+  let candidateName = name;
+  for (let i = 0; i < 5; i++) {
+    try {
+      return await db
+        .prepare(
+          `INSERT INTO channels (name, description, kind, created_by)
+           VALUES (?, ?, ?, ?)`
+        )
+        .bind(candidateName, description, kind, userId)
+        .run();
+    } catch (error) {
+      if (String(error.message).includes('UNIQUE')) {
+        const cleaned = await db
+          .prepare(
+            `UPDATE channels
+             SET name = 'deleted:' || id || ':' || name
+             WHERE name = ? AND deleted_at IS NOT NULL`
+          )
+          .bind(candidateName)
+          .run();
+        if (cleaned.meta?.changes > 0) {
+          continue;
+        }
+        candidateName += '\u200B';
+        continue;
+      }
+      throw error;
+    }
+  }
+  return db
+    .prepare(
+      `INSERT INTO channels (name, description, kind, created_by)
+       VALUES (?, ?, ?, ?)`
+    )
+    .bind(`${name}\u200B${Date.now()}`, description, kind, userId)
+    .run();
+}
+
 export function registerChannelRoutes(app) {
   app.get('/api/channels', async (c) => {
     const session = c.get('session');
@@ -73,12 +116,12 @@ export function registerChannelRoutes(app) {
 
     const inviteUserIds = normalizeMemberIds(payload).filter((userId) => userId !== session.userId);
     const validInvitees = await ensureValidInvitees(c.env.DB, inviteUserIds);
-    const result = await c.env.DB.prepare(
-      `INSERT INTO channels (name, description, kind, created_by)
-       VALUES (?, ?, ?, ?)`
-    )
-      .bind(name, description, kind, session.userId)
-      .run();
+    const result = await insertChannelWithSafeName(c.env.DB, {
+      name,
+      description,
+      kind,
+      userId: session.userId
+    });
 
     const channelId = Number(result.meta.last_row_id);
     const statements = [
@@ -209,21 +252,58 @@ export function registerChannelRoutes(app) {
       return c.json({ ok: true });
     }
 
-    await c.env.DB.prepare(
-      `UPDATE channels
-       SET ${updates.join(', ')}
-       WHERE id = ?
-         AND kind IN ('public', 'private')
-         AND deleted_at IS NULL`
-    )
-      .bind(...binds, channelId)
-      .run();
+    if (name !== undefined) {
+      let candidateName = name;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const currentBinds = [...binds];
+          const nameIndex = updates.findIndex((u) => u.startsWith('name ='));
+          if (nameIndex >= 0) {
+            currentBinds[nameIndex] = candidateName;
+          }
+          await c.env.DB.prepare(
+            `UPDATE channels
+             SET ${updates.join(', ')}
+             WHERE id = ?
+               AND kind IN ('public', 'private')
+               AND deleted_at IS NULL`
+          )
+            .bind(...currentBinds, channelId)
+            .run();
+          break;
+        } catch (error) {
+          if (String(error.message).includes('UNIQUE')) {
+            const cleaned = await c.env.DB.prepare(
+              `UPDATE channels
+               SET name = 'deleted:' || id || ':' || name
+               WHERE name = ? AND deleted_at IS NOT NULL`
+            ).bind(candidateName).run();
+            if (cleaned.meta?.changes > 0) {
+              continue;
+            }
+            candidateName += '\u200B';
+            continue;
+          }
+          throw error;
+        }
+      }
+    } else {
+      await c.env.DB.prepare(
+        `UPDATE channels
+         SET ${updates.join(', ')}
+         WHERE id = ?
+           AND kind IN ('public', 'private')
+           AND deleted_at IS NULL`
+      )
+        .bind(...binds, channelId)
+        .run();
+    }
 
     const updated = await getChannelById(c.env.DB, channelId);
     return c.json({
       channel: {
         id: Number(updated.id),
-        name: updated.name,
+        name: cleanChannelName(updated.name),
         avatarKey: updated.avatar_key || '',
         avatarUrl: updated.avatar_key ? publicFileUrl(updated.avatar_key) : ''
       }
@@ -315,7 +395,8 @@ export function registerChannelRoutes(app) {
 
     await c.env.DB.prepare(
       `UPDATE channels
-       SET deleted_at = CURRENT_TIMESTAMP
+       SET deleted_at = CURRENT_TIMESTAMP,
+           name = 'deleted:' || id || ':' || name
        WHERE id = ?
          AND kind IN ('public', 'private')
          AND deleted_at IS NULL`
@@ -353,7 +434,8 @@ export function registerChannelRoutes(app) {
 
     await c.env.DB.prepare(
       `UPDATE channels
-       SET deleted_at = CURRENT_TIMESTAMP
+       SET deleted_at = CURRENT_TIMESTAMP,
+           name = 'deleted:' || id || ':' || name
        WHERE id = ?
          AND kind IN ('public', 'private')
          AND deleted_at IS NULL`

@@ -82,7 +82,8 @@ export function registerDmRoutes(app) {
     await c.env.DB.prepare(
       `UPDATE channels
        SET deleted_at = CURRENT_TIMESTAMP,
-           dm_key = NULL
+           dm_key = NULL,
+           name = 'deleted:' || id || ':' || name
        WHERE id = ? AND kind = 'dm' AND deleted_at IS NULL`
     )
       .bind(channelId)
