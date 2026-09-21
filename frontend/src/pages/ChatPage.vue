@@ -146,7 +146,8 @@ const {
   startViewportSync,
   stopViewportSync,
   openConversationView,
-  returnToConversationList
+  returnToConversationList,
+  calibrateViewport
 } = useChatViewport({ activeRoom });
 const activeRoomAvatar = computed(() => {
   if (!activeRoom.value) return '';
@@ -332,10 +333,12 @@ const mentionCandidates = computed(() =>
 		: groupMembers.value.filter((member) => Number(member.id) !== Number(session.value?.userId))
 );
 
-function sendComposerMessage() {
-	return sendMessage(
+async function sendComposerMessage() {
+	const result = await sendMessage(
 		resolveMentionUserIds(composerText.value, mentionCandidates.value, session.value?.userId)
 	);
+	calibrateViewport?.();
+	return result;
 }
 const {
   show: showGroupEditor,
@@ -670,11 +673,13 @@ function handleChatAreaClick(event) {
     }
   }
   composerRef.value?.dismissInput();
+  calibrateViewport?.();
 }
 
 function handleEmojiPickerToggle(_open) {
   nextTick().then(() => {
     scrollToBottomSmooth();
+    calibrateViewport?.();
   });
 }
 
@@ -1829,6 +1834,7 @@ onBeforeUnmount(() => {
   .chat-layout {
     min-height: 0;
     background: #ffffff;
+    touch-action: manipulation;
   }
 
   .right-sidebar {

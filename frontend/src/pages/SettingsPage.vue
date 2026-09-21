@@ -1032,6 +1032,10 @@ async function changePassword() {
 
 @media (max-width: 640px) {
   .settings-page {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 16px;
   }
 

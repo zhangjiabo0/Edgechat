@@ -428,6 +428,7 @@ onBeforeUnmount(() => {
 					:disabled="sendDisabled"
 					:title="t('chat.sendMessage')"
 					:aria-label="t('chat.sendMessage')"
+					@mousedown.prevent
 					@click="emit('send')"
 				>
 					<ArrowRight :size="22" aria-hidden="true" />

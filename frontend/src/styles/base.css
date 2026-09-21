@@ -16,23 +16,6 @@ body {
   overscroll-behavior: none;
 }
 
-/*
- * iOS Safari: 虚拟键盘关闭时会给 body 产生 scrollTop 偏移，
- * 导致 position:fixed 的布局容器被推出可视区域。
- * 在移动端使用 fixed 定位 + overflow:hidden 彻底阻止页面级滚动。
- */
-@media (max-width: 960px) {
-  html,
-  body {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-}
-
 
 html {
   background: var(--bg);

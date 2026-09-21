@@ -22,6 +22,12 @@ function createBrowser(width, height = 760) {
 	globalThis.window = {
 		innerWidth: width,
 		innerHeight: height,
+		scrollX: 0,
+		scrollY: 0,
+		scrollTo(x, y) {
+			this.scrollX = x;
+			this.scrollY = y;
+		},
 		addEventListener(type, listener) {
 			addListener(listeners, type, listener);
 		},
@@ -41,6 +47,8 @@ function createBrowser(width, height = 760) {
 	};
 	globalThis.document = {
 		documentElement: {
+			scrollTop: 0,
+			scrollLeft: 0,
 			style: {
 				setProperty(name, value) {
 					properties.set(name, value);
@@ -49,6 +57,16 @@ function createBrowser(width, height = 760) {
 					properties.delete(name);
 				},
 			},
+		},
+		body: {
+			scrollTop: 0,
+			scrollLeft: 0,
+		},
+		addEventListener(type, listener) {
+			addListener(listeners, type, listener);
+		},
+		removeEventListener(type, listener) {
+			removeListener(listeners, type, listener);
 		},
 	};
 	return { listeners, viewportListeners, properties };
@@ -104,3 +122,43 @@ test("桌面端保持聊天视图并在缩窄后保留已选会话", () => {
 	assert.equal(viewport.mobileView.value, "chat");
 	viewport.stopViewportSync();
 });
+
+test("视口同步时会重置 window 滚动位置并防止页面级滚动偏移", () => {
+	const browser = createBrowser(375, 740);
+	const activeRoom = ref(null);
+	const viewport = useChatViewport({ activeRoom });
+
+	window.scrollY = 120;
+	window.scrollX = 10;
+	viewport.startViewportSync();
+	assert.equal(window.scrollY, 0);
+	assert.equal(window.scrollX, 0);
+
+	window.scrollY = 80;
+	for (const listener of browser.viewportListeners.get("scroll")) {
+		listener();
+	}
+	assert.equal(window.scrollY, 0);
+
+	viewport.stopViewportSync();
+});
+
+test("calibrateViewport 能主动校准视口并清除 document 与 body 的残留滚动", () => {
+	const browser = createBrowser(375, 740);
+	const activeRoom = ref(null);
+	const viewport = useChatViewport({ activeRoom });
+
+	viewport.startViewportSync();
+	window.scrollY = 250;
+	document.documentElement.scrollTop = 250;
+	document.body.scrollTop = 250;
+
+	viewport.calibrateViewport();
+	assert.equal(window.scrollY, 0);
+	assert.equal(document.documentElement.scrollTop, 0);
+	assert.equal(document.body.scrollTop, 0);
+
+	viewport.stopViewportSync();
+});
+
+
