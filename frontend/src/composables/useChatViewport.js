@@ -4,6 +4,18 @@ export function useChatViewport({ activeRoom }) {
 	const isMobileViewport = ref(false);
 	const mobileView = ref("list");
 	let viewportInitialized = false;
+	let resetScrollTimer = null;
+
+	/**
+	 * iOS Safari 在虚拟键盘关闭时会给 window 产生一个向下的 scrollTop
+	 * 偏移量，导致 position:fixed 的布局容器被推出可视区域。
+	 * 强制将 window 滚回 (0,0) 来消除此偏移。
+	 */
+	function resetWindowScroll() {
+		if (window.scrollY !== 0 || window.scrollX !== 0) {
+			window.scrollTo(0, 0);
+		}
+	}
 
 	function syncViewportState() {
 		const nextIsMobile = window.innerWidth <= 960;
@@ -28,6 +40,46 @@ export function useChatViewport({ activeRoom }) {
 			"--chat-viewport-offset-top",
 			`${Math.round(visualViewport?.offsetTop || 0)}px`,
 		);
+		// iOS Safari: 键盘弹出/关闭时可能产生页面级偏移，立即修正
+		resetWindowScroll();
+	}
+
+	/**
+	 * 处理输入框失焦事件（键盘关闭）。
+	 * iOS Safari 在键盘关闭动画期间会分多次调整视口，单次重置可能不够，
+	 * 需要延迟多次以覆盖整个关闭动画周期（约 300-400ms）。
+	 */
+	function handleFocusOut(event) {
+		const target = event.target;
+		if (
+			!target ||
+			(target.tagName !== "INPUT" &&
+				target.tagName !== "TEXTAREA" &&
+				!target.isContentEditable)
+		) {
+			return;
+		}
+		if (resetScrollTimer) {
+			clearTimeout(resetScrollTimer);
+		}
+		// 立即重置一次
+		resetWindowScroll();
+		// 在键盘关闭动画的不同阶段各重置一次
+		const delays = [50, 150, 300, 500];
+		let i = 0;
+		function scheduleNext() {
+			if (i >= delays.length) {
+				resetScrollTimer = null;
+				return;
+			}
+			resetScrollTimer = setTimeout(() => {
+				resetWindowScroll();
+				syncViewportHeight();
+				i++;
+				scheduleNext();
+			}, delays[i] - (i > 0 ? delays[i - 1] : 0));
+		}
+		scheduleNext();
 	}
 
 	function startViewportSync() {
@@ -37,6 +89,7 @@ export function useChatViewport({ activeRoom }) {
 		window.addEventListener("resize", syncViewportHeight);
 		window.visualViewport?.addEventListener("resize", syncViewportHeight);
 		window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+		document.addEventListener("focusout", handleFocusOut, true);
 	}
 
 	function stopViewportSync() {
@@ -44,6 +97,11 @@ export function useChatViewport({ activeRoom }) {
 		window.removeEventListener("resize", syncViewportHeight);
 		window.visualViewport?.removeEventListener("resize", syncViewportHeight);
 		window.visualViewport?.removeEventListener("scroll", syncViewportHeight);
+		document.removeEventListener("focusout", handleFocusOut, true);
+		if (resetScrollTimer) {
+			clearTimeout(resetScrollTimer);
+			resetScrollTimer = null;
+		}
 		document.documentElement.style.removeProperty("--chat-viewport-height");
 		document.documentElement.style.removeProperty("--chat-viewport-offset-top");
 	}
@@ -72,3 +130,4 @@ export function useChatViewport({ activeRoom }) {
 		returnToConversationList,
 	};
 }
+
